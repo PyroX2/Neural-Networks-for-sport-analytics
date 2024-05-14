@@ -9,6 +9,7 @@ from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg
 from matplotlib.figure import Figure
 import os
 import mediapipe_interface
+import yolo_interface
 import cv2
 
 
@@ -88,13 +89,6 @@ class GUI:
         self.current_network.setText(
             list(self.networks.keys())[self.network_index])
         self.left_vbox.addWidget(self.current_network)
-
-        # PLOTS
-        self.first_plot = PltCanvas(self, width=5, height=5)
-        self.first_plot.ax.quiver(0, 0, 1, 1)
-        self.first_plot.ax.set_autoscalex_on(True)
-        self.first_plot.ax.set_autoscaley_on(True)
-        self.first_plot.fig.canvas.draw()
 
         # FILE DIALOG BUTTON
         self.file_dialog_button = QtWidgets.QPushButton()
@@ -178,9 +172,20 @@ class GUI:
         else:
             print(file_extension)
             return
-        output = mediapipe_interface.process_mediapipe(runtype, self.file_path)
-        cv2.imshow('a', cv2.cvtColor(output, cv2.COLOR_RGB2BGR))
-        cv2.waitKey(0)
+        # yolo_interface.process_yolo(runtype, self.file_path, self.progress_bar)
+        output, landmarks = mediapipe_interface.process_mediapipe(
+            runtype, self.file_path, self.progress_bar)
+        self.progress_bar.setValue(100)
+        if runtype == "Image":
+            cv2.imshow('a', cv2.cvtColor(output, cv2.COLOR_RGB2BGR))
+            cv2.waitKey(0)
+        elif runtype == 'Video':
+            video = cv2.VideoCapture(self.file_path)
+            fps = video.get(cv2.CAP_PROP_FPS)
+            for frame in output:
+                cv2.imshow('a', frame)
+                cv2.waitKey(int(1000/fps))
+        self.progress_bar.reset()
 
     def show(self):
         self.MainWindow.show()
