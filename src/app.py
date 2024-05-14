@@ -35,15 +35,12 @@ class GUI:
         self.MainWindow.setWindowTitle("NNs for sport analytics")
         self.main_page_layout = QtWidgets.QGridLayout()
 
-        # LOGO
-        self.logo = QtWidgets.QLabel()
-        self.pixmap = QtGui.QPixmap(
-            '/home/jakub/inzynierka/app/images/Qt_logo.png')
-        self.pixmap = self.pixmap.scaled(100, 75)
-        self.logo.setPixmap(self.pixmap)
+        # LAYOUTS
+        self.left_vbox = QtWidgets.QVBoxLayout()
+        self.right_vbox = QtWidgets.QVBoxLayout()
 
-        self.main_page_layout.addWidget(
-            self.logo, 3, 1, QtCore.Qt.AlignRight | QtCore.Qt.AlignBottom)
+        self.main_page_layout.addLayout(self.left_vbox, 0, 0)
+        self.main_page_layout.addLayout(self.right_vbox, 0, 1)
 
         # CHECKBOX
         self.checkbox_layout = QtWidgets.QHBoxLayout()
@@ -63,8 +60,8 @@ class GUI:
             self.networks[key] = 0
             self.checkbox_layout.addWidget(checkbox)
 
-        self.main_page_layout.addLayout(
-            self.checkbox_layout, 0, 0, alignment=QtCore.Qt.AlignLeft)
+        self.left_vbox.addLayout(
+            self.checkbox_layout)
 
         # CURRENTLY DISPLAYED NETWORK
         self.currently_displayed = QtWidgets.QLabel("Currently displayed: ")
@@ -81,14 +78,16 @@ class GUI:
         self.currently_displayed_combobox.currentIndexChanged.connect(
             self.selectionchange)
 
-        self.main_page_layout.addLayout(
-            self.currently_displayed_layout, 0, 1, alignment=QtCore.Qt.AlignRight)
+        self.right_vbox.addLayout(
+            self.currently_displayed_layout)
+        self.right_vbox.setAlignment(
+            self.currently_displayed_layout, QtCore.Qt.AlignRight)
 
         # DISPLAY LABEL WITH CURRENT NETWORK
         self.current_network = QtWidgets.QLabel()
         self.current_network.setText(
             list(self.networks.keys())[self.network_index])
-        self.main_page_layout.addWidget(self.current_network, 1, 0)
+        self.left_vbox.addWidget(self.current_network)
 
         # PLOTS
         self.first_plot = PltCanvas(self, width=5, height=5)
@@ -101,19 +100,31 @@ class GUI:
         self.file_dialog_button = QtWidgets.QPushButton()
         self.file_dialog_button.clicked.connect(self.openFileNameDialog)
         self.file_dialog_button.setText("Choose file")
-        self.main_page_layout.addWidget(self.file_dialog_button, 3, 0)
+        self.right_vbox.addWidget(self.file_dialog_button)
 
         # PROCESS FILE BUTTON
         self.process_button = QtWidgets.QPushButton()
         self.process_button.clicked.connect(self.process_file)
         self.process_button.setText("Process")
         self.process_button.setStyleSheet("background-color : #08c71b")
-        self.main_page_layout.addWidget(self.process_button, 2, 0)
+        self.right_vbox.addWidget(self.process_button)
 
         # PROGRESS BAR
         self.progress_bar = QtWidgets.QProgressBar(self.MainWindow)
         self.progress_bar.setGeometry(30, 40, 200, 25)
-        self.main_page_layout.addWidget(self.progress_bar)
+        self.right_vbox.addWidget(self.progress_bar)
+
+        # LOGO
+        self.logo = QtWidgets.QLabel()
+        self.pixmap = QtGui.QPixmap(
+            '/home/jakub/inzynierka/app/images/Qt_logo.png')
+        self.pixmap = self.pixmap.scaled(100, 75)
+        self.logo.setPixmap(self.pixmap)
+
+        self.right_vbox.addWidget(
+            self.logo)
+        self.right_vbox.setAlignment(
+            self.logo, QtCore.Qt.AlignRight | QtCore.Qt.AlignBottom)
 
         # MAIN PAGE LAYOUT
         self.MainWindow.setLayout(self.main_page_layout)
