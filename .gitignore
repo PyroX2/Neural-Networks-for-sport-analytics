@@ -1,3 +1,4 @@
 test_images/
 models/*
 test/
+__pycache__/
