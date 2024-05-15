@@ -14,15 +14,6 @@ import cv2
 
 
 matplotlib.use("Qt5Agg")
-envpath = '/home/udi/anaconda3/envs/qt_env/lib/python3.10/site-packages/cv2/qt/plugins/platforms'
-os.environ['QT_QPA_PLATFORM_PLUGIN_PATH'] = envpath
-
-
-class PltCanvas:
-    def __init__(self, parent=None, width=5, height=5, dpi=100):
-        self.fig = plt.figure()
-        self.ax = self.fig.add_subplot(111)
-        # super(PltCanvas, self).__init__(fig)
 
 
 class GUI:
@@ -159,11 +150,6 @@ class GUI:
             print(self.file_path)
 
     def process_file(self):
-        # for i in range(101):
-        #     time.sleep(0.05)
-        #     self.progress_bar.setValue(i)
-        # time.sleep(1)
-        # self.progress_bar.setValue(0)
         file_path, file_extension = os.path.split(self.file_path)
         if file_extension[-4:] == ".mp4":
             runtype = "Video"
