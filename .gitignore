@@ -2,3 +2,4 @@ test_images/
 models/*
 test/
 __pycache__/
+.venv/
