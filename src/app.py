@@ -14,6 +14,8 @@ import cv2
 
 
 matplotlib.use("Qt5Agg")
+envpath = '/home/jakub/.local/lib/python3.10/site-packages/cv2/qt/plugins/platforms'
+os.environ['QT_QPA_PLATFORM_PLUGIN_PATH'] = envpath
 
 
 class GUI:
