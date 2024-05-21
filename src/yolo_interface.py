@@ -18,7 +18,8 @@ SKELETON = [(0, 1),
             (12, 14),
             (14, 16),
             (11, 13),
-            (13, 15)]
+            (13, 15),
+            (12, 11)]
 
 
 def process_yolo(runtype, path, progress_bar=None):
@@ -54,7 +55,6 @@ def process_yolo(runtype, path, progress_bar=None):
             # output_images.append(output_image)
             landmarks = [(torch.hstack(
                 (keypoints.xy[0], torch.tensor([[0]]*17))))]
-            result.show()
         return output_image, landmarks
 
 
