@@ -69,7 +69,7 @@ def process_mediapipe(runtype, path, progress_bar):
                 pose_landmarker_result, landmarks = draw_landmarks_on_image(
                     frame.numpy_view(), detection_result)
                 frames.append(pose_landmarker_result)
-                progress_bar.setValue(int(100/length*i))
+                progress_bar.setValue(int(100*i/length))
                 ret, frame = video.read()
                 # print("Video Processed")
             return frames, None
