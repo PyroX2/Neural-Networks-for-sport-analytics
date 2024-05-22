@@ -1,18 +1,67 @@
 from ultralytics import YOLO
+import cv2
+import torch
+import utils
+
+SKELETON = [(0, 1),
+            (1, 3),
+            (0, 2),
+            (2, 4),
+            (3, 5),
+            (4, 6),
+            (6, 8),
+            (8, 10),
+            (5, 7),
+            (7, 9),
+            (6, 12),
+            (5, 11),
+            (12, 14),
+            (14, 16),
+            (11, 13),
+            (13, 15),
+            (12, 11)]
 
 
-def process_yolo(runtype, path, progress_bar):
+def process_yolo(runtype, path, progress_bar=None):
     model = YOLO('models/yolo/yolov8n-pose.pt')
 
-    results = model(path, stream=True)
-    landmarks = []
-    for result in results:
-        boxes = result.boxes  # Boxes object for bounding box outputs
-        masks = result.masks  # Masks object for segmentation masks outputs
-        keypoints = result.keypoints  # Keypoints object for pose outputs
-        probs = result.probs  # Probs object for classification outputs
-        obb = result.obb  # Oriented boxes object for OBB outputs
-        landmarks.append([keypoints.xy[0], keypoints.xy[1], 0])
-    return results, landmarks
-    # result.show()  # display to screen
-    # result.save(filename='result.jpg')  # save to disk
+    if runtype == 'Video':
+        results = model(path, stream=True)
+        video = cv2.VideoCapture(path)
+        length = int(video.get(cv2.CAP_PROP_FRAME_COUNT))
+        output_images = []
+        landmarks = []
+        for i, result in enumerate(results):
+            boxes = result.boxes  # Boxes object for bounding box outputs
+            masks = result.masks  # Masks object for segmentation masks outputs
+            keypoints = result.keypoints  # Keypoints object for pose outputs
+            probs = result.probs  # Probs object for classification outputs
+            obb = result.obb  # Oriented boxes object for OBB outputs
+            output_image = utils.draw_keypoints(
+                keypoints.xy[0], result.orig_img, SKELETON)
+            output_images.append(output_image)
+            landmarks.append(torch.hstack(
+                (keypoints.xy[0], torch.tensor([[0]]*17))))
+            if progress_bar is not None:
+                progress_bar.setValue(int(100*i/length))
+        return output_images, landmarks
+    elif runtype == 'Image':
+        results = model(path)
+        for result in results:
+            keypoints = result.keypoints
+            output_image = utils.draw_keypoints(
+                keypoints.xy[0], result.orig_img, SKELETON)
+            output_image = cv2.cvtColor(output_image, cv2.COLOR_BGR2RGB)
+            # output_images.append(output_image)
+            landmarks = [(torch.hstack(
+                (keypoints.xy[0], torch.tensor([[0]]*17))))]
+        return output_image, landmarks
+
+
+def main():
+    # process_yolo('Video', '/home/jakub/Videos/training.mp4')
+    process_yolo('Image', '/home/jakub/inzynierka/app/test_images/image.jpg')
+
+
+if __name__ == '__main__':
+    main()
