@@ -169,6 +169,8 @@ class GUI(QtWidgets.QMainWindow):
             return
 
         for network in self.networks.keys():
+            if self.networks[network]['Enabled'] == 0:
+                continue
             network_interface = self.networks[network]['Interface']
             if network_interface is None:
                 continue
@@ -194,7 +196,6 @@ class GUI(QtWidgets.QMainWindow):
         self.progress_bar.setValue(100)
         if runtype == "Image":
             cv2.imshow('a', cv2.cvtColor(output, cv2.COLOR_RGB2BGR))
-            # cv2.waitKey(0)
         elif runtype == 'Video':
             video = cv2.VideoCapture(self.file_path)
             fps = video.get(cv2.CAP_PROP_FPS)
