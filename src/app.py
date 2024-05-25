@@ -11,6 +11,7 @@ import os
 import mediapipe_interface
 import yolo_interface
 import cv2
+from worker import Worker
 
 
 matplotlib.use("Qt5Agg")
@@ -18,8 +19,9 @@ envpath = '/home/jakub/.local/lib/python3.10/site-packages/cv2/qt/plugins/platfo
 os.environ['QT_QPA_PLATFORM_PLUGIN_PATH'] = envpath
 
 
-class GUI:
+class GUI(QtWidgets.QMainWindow):
     def __init__(self):
+        super(QtWidgets.QMainWindow, self).__init__()
         self.initialize_variables()
 
         # MAIN PAGE
@@ -51,7 +53,7 @@ class GUI:
             checkbox.setChecked(False)
             self.checkboxes.append(checkbox)
             checkbox.stateChanged.connect(self.checkbox_state)
-            self.networks[key] = 0
+            self.networks[key]["Enabled"] = 0
             self.checkbox_layout.addWidget(checkbox)
 
         self.left_vbox.addLayout(
@@ -116,9 +118,14 @@ class GUI:
         # MAIN PAGE LAYOUT
         self.MainWindow.setLayout(self.main_page_layout)
 
+        # MULTITHREADING
+        self.threadpool = QtCore.QThreadPool()
+
     def initialize_variables(self):
-        self.networks = {'YOLO': 0, 'OpenPifPaf': 0,
-                         'OpenPose': 0, 'MediaPipe': 0}
+        self.networks = {'YOLO': {"Enabled": 0, "Interface": yolo_interface.process_yolo},
+                         'MediaPipe': {"Enabled": 0, "Interface": mediapipe_interface.process_mediapipe},
+                         'OpenPifPaf': {"Enabled": 0, "Interface": None},
+                         'OpenPose': {"Enabled": 0, "Interface": None}}
         self.network_index = 0
         self.file_path = ""
 
@@ -131,15 +138,15 @@ class GUI:
         for checkbox in self.checkboxes:
             checkbox.setChecked(True)
             key = checkbox.text()
-            self.networks[key] = 1
+            self.networks[key]["Enabled"] = 1
             print(self.networks)
 
     def checkbox_state(self):
         for i, checkbox in enumerate(self.checkboxes):
             if checkbox.isChecked():
-                self.networks[checkbox.text()] = 1
+                self.networks[checkbox.text()]["Enabled"] = 1
             else:
-                self.networks[checkbox.text()] = 0
+                self.networks[checkbox.text()]["Enabled"] = 0
         print(self.networks)
 
     def openFileNameDialog(self):
@@ -160,13 +167,35 @@ class GUI:
         else:
             print(file_extension)
             return
-        # yolo_interface.process_yolo(runtype, self.file_path, self.progress_bar)
-        output, landmarks = mediapipe_interface.process_mediapipe(
-            runtype, self.file_path, self.progress_bar)
+
+        for network in self.networks.keys():
+            if self.networks[network]['Enabled'] == 0:
+                continue
+            network_interface = self.networks[network]['Interface']
+            if network_interface is None:
+                continue
+            worker = Worker(network_interface,
+                            runtype, self.file_path, self.progress_bar)
+            self.threadpool.start(worker)
+            worker.signals.result.connect(self.show_output)
+
+    def show(self):
+        self.MainWindow.show()
+
+    def show_output(self, result):
+        output = result[0]
+        landmarks = result[1]
+        file_path, file_extension = os.path.split(self.file_path)
+        if file_extension[-4:] == ".mp4":
+            runtype = "Video"
+        elif file_extension[-4:] == ".jpg":
+            runtype = "Image"
+        else:
+            print(file_extension)
+            return
         self.progress_bar.setValue(100)
         if runtype == "Image":
             cv2.imshow('a', cv2.cvtColor(output, cv2.COLOR_RGB2BGR))
-            cv2.waitKey(0)
         elif runtype == 'Video':
             video = cv2.VideoCapture(self.file_path)
             fps = video.get(cv2.CAP_PROP_FPS)
@@ -174,9 +203,6 @@ class GUI:
                 cv2.imshow('a', frame)
                 cv2.waitKey(int(1000/fps))
         self.progress_bar.reset()
-
-    def show(self):
-        self.MainWindow.show()
 
 
 def main():

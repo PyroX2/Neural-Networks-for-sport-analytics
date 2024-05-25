@@ -41,7 +41,7 @@ def process_yolo(runtype, path, progress_bar=None):
                 keypoints.xy[0], result.orig_img, SKELETON)
             output_images.append(output_image)
             landmarks.append(torch.hstack(
-                (keypoints.xy[0], torch.tensor([[0]]*17))))
+                (keypoints.xy[0], torch.tensor([[0]]*len(keypoints.xy[0])))))
             if progress_bar is not None:
                 progress_bar.setValue(int(100*i/length))
         return output_images, landmarks
@@ -54,7 +54,7 @@ def process_yolo(runtype, path, progress_bar=None):
             output_image = cv2.cvtColor(output_image, cv2.COLOR_BGR2RGB)
             # output_images.append(output_image)
             landmarks = [(torch.hstack(
-                (keypoints.xy[0], torch.tensor([[0]]*17))))]
+                (keypoints.xy[0], torch.tensor([[0]]*len(keypoints.xy[0])))))]
         return output_image, landmarks
 
 
