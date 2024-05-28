@@ -81,7 +81,7 @@ def process_mediapipe(runtype, path, progress_bar):
             annotated_image, landmarks = draw_landmarks_on_image(
                 input.numpy_view(), detection_result)
             # return annotated_image
-            return annotated_image, landmarks
+            return [annotated_image], landmarks, 'MediaPipe'
 
             # cv2.imshow('a', cv2.cvtColor(annotated_image, cv2.COLOR_RGB2BGR))
             # cv2.waitKey(0)
