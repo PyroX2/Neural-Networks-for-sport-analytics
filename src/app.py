@@ -12,6 +12,7 @@ import mediapipe_interface
 import yolo_interface
 import cv2
 from worker import Worker
+from image_window import ImageWindow
 
 
 matplotlib.use("Qt5Agg")
@@ -72,18 +73,19 @@ class GUI(QtWidgets.QMainWindow):
         for key in self.networks.keys():
             self.currently_displayed_combobox.addItem(key)
         self.currently_displayed_combobox.currentIndexChanged.connect(
-            self.selectionchange)
+            self.selection_change)
 
         self.right_vbox.addLayout(
             self.currently_displayed_layout)
         self.right_vbox.setAlignment(
             self.currently_displayed_layout, QtCore.Qt.AlignRight)
 
-        # DISPLAY LABEL WITH CURRENT NETWORK
-        self.current_network = QtWidgets.QLabel()
-        self.current_network.setText(
-            list(self.networks.keys())[self.network_index])
-        self.left_vbox.addWidget(self.current_network)
+        # IMAGE WINDOW
+        self.image_window = ImageWindow()
+        # self.current_network = QtWidgets.QLabel()
+        # self.current_network.setText(
+        # list(self.networks.keys())[self.network_index])
+        self.left_vbox.addWidget(self.image_window.pixmap_label)
 
         # FILE DIALOG BUTTON
         self.file_dialog_button = QtWidgets.QPushButton()
@@ -122,17 +124,16 @@ class GUI(QtWidgets.QMainWindow):
         self.threadpool = QtCore.QThreadPool()
 
     def initialize_variables(self):
-        self.networks = {'YOLO': {"Enabled": 0, "Interface": yolo_interface.process_yolo},
-                         'MediaPipe': {"Enabled": 0, "Interface": mediapipe_interface.process_mediapipe},
-                         'OpenPifPaf': {"Enabled": 0, "Interface": None},
-                         'OpenPose': {"Enabled": 0, "Interface": None}}
+        self.networks = {'YOLO': {"Enabled": 0, "Interface": yolo_interface.process_yolo, "Data": [], "Processed": False},
+                         'MediaPipe': {"Enabled": 0, "Interface": mediapipe_interface.process_mediapipe, "Data": [], "Processed": False},
+                         'OpenPifPaf': {"Enabled": 0, "Interface": None, "Data": [], "Processed": False},
+                         'OpenPose': {"Enabled": 0, "Interface": None, "Data": [], "Processed": False}}
         self.network_index = 0
         self.file_path = ""
 
-    def selectionchange(self, i):
+    def selection_change(self, i):
         self.network_index = i
-        self.current_network.setText(
-            list(self.networks.keys())[self.network_index])
+        self.show_output()
 
     def check_all(self):
         for checkbox in self.checkboxes:
@@ -170,6 +171,7 @@ class GUI(QtWidgets.QMainWindow):
 
         for network in self.networks.keys():
             if self.networks[network]['Enabled'] == 0:
+                self.networks[network]['Data'] = []
                 continue
             network_interface = self.networks[network]['Interface']
             if network_interface is None:
@@ -177,32 +179,51 @@ class GUI(QtWidgets.QMainWindow):
             worker = Worker(network_interface,
                             runtype, self.file_path, self.progress_bar)
             self.threadpool.start(worker)
-            worker.signals.result.connect(self.show_output)
+            worker.signals.result.connect(self.save_output)
+
+    def save_output(self, output):
+        self.networks[output[2]]['Data'] = output[0]
+        self.networks[output[2]]['Processed'] = True
+        self.progress_bar.setValue(100)
+        self.show_output()
+
+    def show_output(self):
+        network = list(self.networks.keys())[self.network_index]
+        data = self.networks[network]['Data']
+        if len(data) == 1:
+            self.show_image()
+        elif len(data) > 1:
+            worker = Worker(self.show_video)
+            self.threadpool.start(worker)
+        else:
+            self.progress_bar.reset()
+            self.image_window.reset()
+            return
+        self.progress_bar.reset()
+
+    def show_image(self):
+        network = list(self.networks.keys())[self.network_index]
+        data = self.networks[network]['Data']
+        self.image_window.set_image_data(
+            cv2.cvtColor(data[0], cv2.COLOR_RGB2BGR))
+
+    def show_video(self):
+        video = cv2.VideoCapture(self.file_path)
+        fps = video.get(cv2.CAP_PROP_FPS)
+        length = int(video.get(cv2.CAP_PROP_FRAME_COUNT))
+
+        network = list(self.networks.keys())[self.network_index]
+        data = self.networks[network]['Data']
+        for frame in data:
+            self.image_window.set_image_data(
+                cv2.cvtColor(frame, cv2.COLOR_RGB2BGR))
+            time.sleep(1/fps)
+            if list(self.networks.keys())[self.network_index] != network:
+                break
+        # QtGui.QPainter().end()
 
     def show(self):
         self.MainWindow.show()
-
-    def show_output(self, result):
-        output = result[0]
-        landmarks = result[1]
-        file_path, file_extension = os.path.split(self.file_path)
-        if file_extension[-4:] == ".mp4":
-            runtype = "Video"
-        elif file_extension[-4:] == ".jpg":
-            runtype = "Image"
-        else:
-            print(file_extension)
-            return
-        self.progress_bar.setValue(100)
-        if runtype == "Image":
-            cv2.imshow('a', cv2.cvtColor(output, cv2.COLOR_RGB2BGR))
-        elif runtype == 'Video':
-            video = cv2.VideoCapture(self.file_path)
-            fps = video.get(cv2.CAP_PROP_FPS)
-            for frame in output:
-                cv2.imshow('a', frame)
-                cv2.waitKey(int(1000/fps))
-        self.progress_bar.reset()
 
 
 def main():
