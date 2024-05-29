@@ -72,7 +72,7 @@ def process_mediapipe(runtype, path, progress_bar):
                 progress_bar.setValue(int(100*i/length))
                 ret, frame = video.read()
                 # print("Video Processed")
-            return frames, None
+            return frames, None, 'MediaPipe'
         elif runtype == 'Image':
             input = mp.Image.create_from_file(path)
             detection_result = landmarker.detect(input)
