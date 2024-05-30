@@ -145,7 +145,7 @@ class GUI(QtWidgets.QMainWindow):
 
     def selection_change(self, i):
         self.network_index = i
-        self.show_output()
+        # self.show_output()
 
     def check_all(self):
         for checkbox in self.checkboxes:
@@ -233,13 +233,16 @@ class GUI(QtWidgets.QMainWindow):
 
         network = list(self.networks.keys())[self.network_index]
         data = self.networks[network]['Data']
-        for i, frame in enumerate(data):
+        number_of_frames = len(data)
+        i = 0
+        while i < number_of_frames:
+            network = list(self.networks.keys())[self.network_index]
+            frame = self.networks[network]['Data'][i]
             self.image_window.set_image_data(
                 cv2.cvtColor(frame, cv2.COLOR_RGB2BGR))
             time.sleep(1/fps)
             self.move_vector(i)
-            if list(self.networks.keys())[self.network_index] != network:
-                break
+            i += 1
 
     def move_vector(self, i):
         i = i*0.1
