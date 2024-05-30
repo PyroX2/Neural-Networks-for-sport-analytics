@@ -20,6 +20,14 @@ envpath = '/home/jakub/.local/lib/python3.10/site-packages/cv2/qt/plugins/platfo
 os.environ['QT_QPA_PLATFORM_PLUGIN_PATH'] = envpath
 
 
+class MplCanvas(FigureCanvasQTAgg):
+
+    def __init__(self, parent=None, width=5, height=4, dpi=100):
+        self.fig = Figure(figsize=(width, height), dpi=dpi)
+        self.axes = self.fig.add_subplot(111)
+        super(MplCanvas, self).__init__(self.fig)
+
+
 class GUI(QtWidgets.QMainWindow):
     def __init__(self):
         super(QtWidgets.QMainWindow, self).__init__()
@@ -82,9 +90,6 @@ class GUI(QtWidgets.QMainWindow):
 
         # IMAGE WINDOW
         self.image_window = ImageWindow()
-        # self.current_network = QtWidgets.QLabel()
-        # self.current_network.setText(
-        # list(self.networks.keys())[self.network_index])
         self.left_vbox.addWidget(self.image_window.pixmap_label)
 
         # FILE DIALOG BUTTON
@@ -104,6 +109,13 @@ class GUI(QtWidgets.QMainWindow):
         self.progress_bar = QtWidgets.QProgressBar(self.MainWindow)
         self.progress_bar.setGeometry(30, 40, 200, 25)
         self.right_vbox.addWidget(self.progress_bar)
+
+        # VECTOR
+        self.sc = MplCanvas(self, width=5, height=4, dpi=100)
+        self.vector = self.sc.axes.quiver(0, 0, 1, 1, scale=1)
+        self.right_vbox.addWidget(self.sc)
+        self.sc.axes.set_xlim(-10, 10)
+        self.sc.axes.set_ylim(-10, 10)
 
         # LOGO
         self.logo = QtWidgets.QLabel()
@@ -171,6 +183,7 @@ class GUI(QtWidgets.QMainWindow):
 
         for network in self.networks.keys():
             if self.networks[network]['Enabled'] == 0:
+                self.networks[network]['Processed'] = True
                 self.networks[network]['Data'] = []
                 continue
             network_interface = self.networks[network]['Interface']
@@ -185,6 +198,12 @@ class GUI(QtWidgets.QMainWindow):
         self.networks[output[2]]['Data'] = output[0]
         self.networks[output[2]]['Processed'] = True
         self.progress_bar.setValue(100)
+        for network in self.networks.keys():
+            if not self.networks[network]['Processed']:
+                return
+        # This executes only if all networks are processed
+        for network in self.networks.keys():
+            self.networks[network]['Processed'] = False
         self.show_output()
 
     def show_output(self):
@@ -214,13 +233,19 @@ class GUI(QtWidgets.QMainWindow):
 
         network = list(self.networks.keys())[self.network_index]
         data = self.networks[network]['Data']
-        for frame in data:
+        for i, frame in enumerate(data):
             self.image_window.set_image_data(
                 cv2.cvtColor(frame, cv2.COLOR_RGB2BGR))
             time.sleep(1/fps)
+            self.move_vector(i)
             if list(self.networks.keys())[self.network_index] != network:
                 break
-        # QtGui.QPainter().end()
+
+    def move_vector(self, i):
+        i = i*0.1
+        self.vector.set_UVC(i, i)
+        self.sc.fig.canvas.draw()
+        self.sc.fig.canvas.flush_events()
 
     def show(self):
         self.MainWindow.show()
