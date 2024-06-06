@@ -154,8 +154,10 @@ class GUI(QtWidgets.QMainWindow):
         self.vector = self.sc.axes.quiver(
             0, 0, 0, 0, angles='xy', scale_units='xy', scale=1)
         self.right_vbox.addWidget(self.sc)
-        self.sc.axes.set_xlim(-50, 50)
-        self.sc.axes.set_ylim(-50, 50)
+        self.sc.axes.set_xlim(-1000, 1000)
+        self.sc.axes.set_ylim(-1000, 1000)
+        self.sc.axes.set_xlabel("px/s")
+        self.sc.axes.set_ylabel("px/s")
 
         # LOGO
         self.logo = QtWidgets.QLabel()
@@ -195,7 +197,6 @@ class GUI(QtWidgets.QMainWindow):
             checkbox.setChecked(True)
             key = checkbox.text()
             self.networks[key]["Enabled"] = 1
-            print(self.networks)
 
     def checkbox_state(self):
         for i, checkbox in enumerate(self.checkboxes):
@@ -203,7 +204,6 @@ class GUI(QtWidgets.QMainWindow):
                 self.networks[checkbox.text()]["Enabled"] = 1
             else:
                 self.networks[checkbox.text()]["Enabled"] = 0
-        print(self.networks)
 
     def openFileNameDialog(self):
         options = QtWidgets.QFileDialog.Options()
@@ -212,7 +212,6 @@ class GUI(QtWidgets.QMainWindow):
             self.MainWindow, "File Dialog", "", "All Files (*);;Video Files (*.mp4);;Image Files (*.jpg)", options=options)
         if file_path:
             self.file_path = file_path
-            print(self.file_path)
 
     def process_file(self):
         self.processing = True
@@ -222,7 +221,6 @@ class GUI(QtWidgets.QMainWindow):
         elif file_extension[-4:] == ".jpg":
             runtype = "Image"
         else:
-            print(file_extension)
             return
 
         for network in self.networks.keys():
@@ -278,31 +276,31 @@ class GUI(QtWidgets.QMainWindow):
         i = 0
         keypoint_position_prev = torch.tensor([0, 0])
         while True:
+            start_time = time.time()
             self.slider.setValue(i)
             network = list(self.networks.keys())[self.network_index]
-            print(f'NETWORK: {network}')
-            print(f'KEYPOINTS: {self.networks[network]["Keypoints"]}')
             data = self.networks[network]['Data']
-            if self.networks[network]['Keypoints'][i].shape[0] > 0 and len(self.networks[network]['Keypoints'][i][self.selected_keypoint]) > self.selected_keypoint:
+            if self.networks[network]['Keypoints'][i].shape[0] > 0 and len(self.networks[network]['Keypoints'][i]) > self.selected_keypoint:
                 keypoint_position = self.networks[network]['Keypoints'][i][self.selected_keypoint]
             else:
                 keypoint_position = None
             number_of_frames = len(data)
-            print(f'CURRENT: {keypoint_position}')
-            print(f'PREV: {keypoint_position_prev}')
             if len(self.networks[network]['Data']) > 0:
                 frame = data[i]
             if keypoint_position is not None:
-                frame = cv2.circle(
-                    frame, (int(keypoint_position[0]), int(keypoint_position[1])), 1, (0, 0, 255), 3)
+                processed_frame = cv2.circle(
+                    copy.copy(frame), (int(keypoint_position[0]), int(keypoint_position[1])), 5, (255, 50, 50), 3)
                 new_vector_value = self.calculate_new_vector(
                     keypoint_position, fps)
                 self.move_vector(new_vector_value)
                 self.prev_value = keypoint_position
                 keypoint_position_prev = keypoint_position
+            else:
+                processed_frame = copy.copy(frame)
             self.image_window.set_image_data(
-                cv2.cvtColor(frame, cv2.COLOR_RGB2BGR))
-            time.sleep(1/fps)
+                cv2.cvtColor(processed_frame, cv2.COLOR_RGB2BGR))
+            time.sleep(1/fps - (time.time() - start_time))
+
             # Calculate new vector based on the current and previous value
             i = self.slider.value()
             self.slider.setMaximum(number_of_frames-1)
@@ -314,7 +312,10 @@ class GUI(QtWidgets.QMainWindow):
 
     def move_vector(self, new_value):
         self.vector.set_UVC(new_value[0], new_value[1])
-        self.sc.fig.canvas.draw()
+        # self.sc.fig.canvas.draw()
+        self.sc.axes.draw_artist(self.sc.axes.patch)
+        self.sc.axes.draw_artist(self.vector)
+        self.sc.fig.canvas.update()
         self.sc.fig.canvas.flush_events()
 
     def change_play_button(self):
