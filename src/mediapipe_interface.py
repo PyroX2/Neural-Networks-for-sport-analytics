@@ -57,6 +57,7 @@ def process_mediapipe(runtype, path, progress_bar):
 
     with PoseLandmarker.create_from_options(options) as landmarker:
         if runtype == 'Video':
+            all_landmarks = []
             video = cv2.VideoCapture(path)
             fps = video.get(cv2.CAP_PROP_FPS)
 
@@ -64,28 +65,22 @@ def process_mediapipe(runtype, path, progress_bar):
             ret, frame = video.read()
             length = int(video.get(cv2.CAP_PROP_FRAME_COUNT))
             for i in range(length):
+                numpy_frame = np.array(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
                 frame = mp.Image(image_format=mp.ImageFormat.SRGB, data=frame)
                 detection_result = landmarker.detect(frame)
                 pose_landmarker_result, landmarks = draw_landmarks_on_image(
-                    frame.numpy_view(), detection_result)
+                    numpy_frame, detection_result)
                 frames.append(pose_landmarker_result)
+                all_landmarks.append(landmarks)
                 progress_bar.setValue(int(100*i/length))
                 ret, frame = video.read()
-                # print("Video Processed")
-            return frames, None, 'MediaPipe'
+            return frames, all_landmarks, 'MediaPipe'
         elif runtype == 'Image':
             input = mp.Image.create_from_file(path)
             detection_result = landmarker.detect(input)
-            # print(detection_result.pose_landmarks)
-
             annotated_image, landmarks = draw_landmarks_on_image(
                 input.numpy_view(), detection_result)
-            # return annotated_image
             return [annotated_image], landmarks, 'MediaPipe'
-
-            # cv2.imshow('a', cv2.cvtColor(annotated_image, cv2.COLOR_RGB2BGR))
-            # cv2.waitKey(0)
-            # print("Image Processed")
 
 
 def main():
