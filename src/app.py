@@ -13,6 +13,8 @@ import yolo_interface
 import cv2
 from worker import Worker
 from image_window import ImageWindow
+import numpy as np
+import torch
 
 
 matplotlib.use("Qt5Agg")
@@ -92,6 +94,23 @@ class GUI(QtWidgets.QMainWindow):
         self.image_window = ImageWindow()
         self.left_vbox.addWidget(self.image_window.pixmap_label)
 
+        # VIDEO MANIPULATION LAYOUT
+        self.video_layout = QtWidgets.QHBoxLayout()
+        self.left_vbox.addLayout(self.video_layout)
+
+        # Play Button
+        self.play_button = QtWidgets.QPushButton()
+        self.play_button.setText("STOP")
+        self.play_button.clicked.connect(self.change_play_button)
+        self.play_button_status = True
+        self.video_layout.addWidget(self.play_button)
+
+        # SLIDER
+        self.slider = QtWidgets.QSlider(QtCore.Qt.Horizontal)
+        self.slider.setMinimum(0)
+        self.slider.setMaximum(100)
+        self.video_layout.addWidget(self.slider)
+
         # FILE DIALOG BUTTON
         self.file_dialog_button = QtWidgets.QPushButton()
         self.file_dialog_button.clicked.connect(self.openFileNameDialog)
@@ -110,12 +129,33 @@ class GUI(QtWidgets.QMainWindow):
         self.progress_bar.setGeometry(30, 40, 200, 25)
         self.right_vbox.addWidget(self.progress_bar)
 
+        # KEYPOINT SELECTION
+        self.selected_keypoint_label = QtWidgets.QLabel("Selected keypoints: ")
+        self.selected_keypoint_combobox = QtWidgets.QComboBox()
+
+        self.selected_keypoint_layout = QtWidgets.QHBoxLayout()
+        self.selected_keypoint_layout.addWidget(
+            self.selected_keypoint_label, alignment=QtCore.Qt.AlignRight)
+        self.selected_keypoint_layout.addWidget(
+            self.selected_keypoint_combobox, alignment=QtCore.Qt.AlignRight)
+
+        for i in range(25):
+            self.selected_keypoint_combobox.addItem(str(i))
+        self.selected_keypoint_combobox.currentIndexChanged.connect(
+            self._selected_keypoint_change)
+
+        self.right_vbox.addLayout(
+            self.selected_keypoint_layout)
+        self.right_vbox.setAlignment(
+            self.selected_keypoint_layout, QtCore.Qt.AlignRight)
+
         # VECTOR
         self.sc = MplCanvas(self, width=5, height=4, dpi=100)
-        self.vector = self.sc.axes.quiver(0, 0, 1, 1, scale=1)
+        self.vector = self.sc.axes.quiver(
+            0, 0, 0, 0, angles='xy', scale_units='xy', scale=1)
         self.right_vbox.addWidget(self.sc)
-        self.sc.axes.set_xlim(-10, 10)
-        self.sc.axes.set_ylim(-10, 10)
+        self.sc.axes.set_xlim(-50, 50)
+        self.sc.axes.set_ylim(-50, 50)
 
         # LOGO
         self.logo = QtWidgets.QLabel()
@@ -136,12 +176,15 @@ class GUI(QtWidgets.QMainWindow):
         self.threadpool = QtCore.QThreadPool()
 
     def initialize_variables(self):
-        self.networks = {'YOLO': {"Enabled": 0, "Interface": yolo_interface.process_yolo, "Data": [], "Processed": False},
-                         'MediaPipe': {"Enabled": 0, "Interface": mediapipe_interface.process_mediapipe, "Data": [], "Processed": False},
-                         'OpenPifPaf': {"Enabled": 0, "Interface": None, "Data": [], "Processed": False},
-                         'OpenPose': {"Enabled": 0, "Interface": None, "Data": [], "Processed": False}}
+        self.networks = {'YOLO': {"Enabled": 0, "Interface": yolo_interface.process_yolo, "Data": [], "Processed": False, "Keypoints": []},
+                         'MediaPipe': {"Enabled": 0, "Interface": mediapipe_interface.process_mediapipe, "Data": [], "Processed": False, "Keypoints": []},
+                         'OpenPifPaf': {"Enabled": 0, "Interface": None, "Data": [], "Processed": False, "Keypoints": []},
+                         'OpenPose': {"Enabled": 0, "Interface": None, "Data": [], "Processed": False, "Keypoints": []}}
         self.network_index = 0
         self.file_path = ""
+        self.processing = False
+        self.selected_keypoint = 0
+        self.prev_value = [0, 0]
 
     def selection_change(self, i):
         self.network_index = i
@@ -172,6 +215,7 @@ class GUI(QtWidgets.QMainWindow):
             print(self.file_path)
 
     def process_file(self):
+        self.processing = True
         file_path, file_extension = os.path.split(self.file_path)
         if file_extension[-4:] == ".mp4":
             runtype = "Video"
@@ -196,6 +240,7 @@ class GUI(QtWidgets.QMainWindow):
 
     def save_output(self, output):
         self.networks[output[2]]['Data'] = output[0]
+        self.networks[output[2]]['Keypoints'] = output[1]
         self.networks[output[2]]['Processed'] = True
         self.progress_bar.setValue(100)
         for network in self.networks.keys():
@@ -204,6 +249,7 @@ class GUI(QtWidgets.QMainWindow):
         # This executes only if all networks are processed
         for network in self.networks.keys():
             self.networks[network]['Processed'] = False
+        self.processing = False
         self.show_output()
 
     def show_output(self):
@@ -229,26 +275,63 @@ class GUI(QtWidgets.QMainWindow):
     def show_video(self):
         video = cv2.VideoCapture(self.file_path)
         fps = video.get(cv2.CAP_PROP_FPS)
-        length = int(video.get(cv2.CAP_PROP_FRAME_COUNT))
-
-        network = list(self.networks.keys())[self.network_index]
-        data = self.networks[network]['Data']
-        number_of_frames = len(data)
         i = 0
-        while i < number_of_frames:
+        keypoint_position_prev = torch.tensor([0, 0])
+        while True:
+            self.slider.setValue(i)
             network = list(self.networks.keys())[self.network_index]
-            frame = self.networks[network]['Data'][i]
+            print(f'NETWORK: {network}')
+            print(f'KEYPOINTS: {self.networks[network]["Keypoints"]}')
+            data = self.networks[network]['Data']
+            if self.networks[network]['Keypoints'][i].shape[0] > 0 and len(self.networks[network]['Keypoints'][i][self.selected_keypoint]) > self.selected_keypoint:
+                keypoint_position = self.networks[network]['Keypoints'][i][self.selected_keypoint]
+            else:
+                keypoint_position = None
+            number_of_frames = len(data)
+            print(f'CURRENT: {keypoint_position}')
+            print(f'PREV: {keypoint_position_prev}')
+            if len(self.networks[network]['Data']) > 0:
+                frame = data[i]
+            if keypoint_position is not None:
+                frame = cv2.circle(
+                    frame, (int(keypoint_position[0]), int(keypoint_position[1])), 1, (0, 0, 255), 3)
+                new_vector_value = self.calculate_new_vector(
+                    keypoint_position, fps)
+                self.move_vector(new_vector_value)
+                self.prev_value = keypoint_position
+                keypoint_position_prev = keypoint_position
             self.image_window.set_image_data(
                 cv2.cvtColor(frame, cv2.COLOR_RGB2BGR))
             time.sleep(1/fps)
-            self.move_vector(i)
-            i += 1
+            # Calculate new vector based on the current and previous value
+            i = self.slider.value()
+            self.slider.setMaximum(number_of_frames-1)
 
-    def move_vector(self, i):
-        i = i*0.1
-        self.vector.set_UVC(i, i)
+            if self.play_button_status and i < len(self.networks[network]['Data'])-1:
+                i += 1
+            if self.processing:
+                return
+
+    def move_vector(self, new_value):
+        self.vector.set_UVC(new_value[0], new_value[1])
         self.sc.fig.canvas.draw()
         self.sc.fig.canvas.flush_events()
+
+    def change_play_button(self):
+        if self.play_button_status:
+            self.play_button_status = False
+            self.play_button.setText("PLAY")
+        else:
+            self.play_button_status = True
+            self.play_button.setText("STOP")
+
+    def calculate_new_vector(self, current_value, fps):
+        new_vector_x = (current_value[0] - self.prev_value[0]) * fps
+        new_vector_y = (current_value[1] - self.prev_value[1]) * fps
+        return [new_vector_x, new_vector_y]
+
+    def _selected_keypoint_change(self, i):
+        self.selected_keypoint = int(i)
 
     def show(self):
         self.MainWindow.show()
