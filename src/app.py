@@ -4,7 +4,6 @@ import sys
 import copy
 import time
 import matplotlib
-import matplotlib.pyplot as plt
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg
 from matplotlib.figure import Figure
 import os
@@ -15,6 +14,7 @@ from worker import Worker
 from image_window import ImageWindow
 import numpy as np
 import torch
+import utils
 
 
 matplotlib.use("Qt5Agg")
@@ -111,6 +111,18 @@ class GUI(QtWidgets.QMainWindow):
         self.slider.setMaximum(100)
         self.video_layout.addWidget(self.slider)
 
+        # PREV FRAME
+        self.prev_frame = QtWidgets.QPushButton()
+        self.prev_frame.setText("-")
+        self.prev_frame.clicked.connect(self._prev_frame)
+        self.video_layout.addWidget(self.prev_frame)
+
+        # NEXT FRAME
+        self.next_frame = QtWidgets.QPushButton()
+        self.next_frame.setText("+")
+        self.next_frame.clicked.connect(self._next_frame)
+        self.video_layout.addWidget(self.next_frame)
+
         # FILE DIALOG BUTTON
         self.file_dialog_button = QtWidgets.QPushButton()
         self.file_dialog_button.clicked.connect(self.openFileNameDialog)
@@ -129,20 +141,33 @@ class GUI(QtWidgets.QMainWindow):
         self.progress_bar.setGeometry(30, 40, 200, 25)
         self.right_vbox.addWidget(self.progress_bar)
 
+        # PLOT SELECTION
+        self.selected_plot_label = QtWidgets.QLabel("Selected plot: ")
+        self.selected_plot_combobox = QtWidgets.QComboBox()
+        self.selected_plot_combobox.addItem("Velocity")
+        self.selected_plot_combobox.addItem("3D Plot")
+        self.selected_plot_combobox.currentIndexChanged.connect(
+            self._selected_plot_change)
+
         # KEYPOINT SELECTION
         self.selected_keypoint_label = QtWidgets.QLabel("Selected keypoints: ")
         self.selected_keypoint_combobox = QtWidgets.QComboBox()
-
-        self.selected_keypoint_layout = QtWidgets.QHBoxLayout()
-        self.selected_keypoint_layout.addWidget(
-            self.selected_keypoint_label, alignment=QtCore.Qt.AlignRight)
-        self.selected_keypoint_layout.addWidget(
-            self.selected_keypoint_combobox, alignment=QtCore.Qt.AlignRight)
 
         for i in range(25):
             self.selected_keypoint_combobox.addItem(str(i))
         self.selected_keypoint_combobox.currentIndexChanged.connect(
             self._selected_keypoint_change)
+
+        self.selected_keypoint_layout = QtWidgets.QHBoxLayout()
+        # Add widgets
+        self.selected_keypoint_layout.addWidget(
+            self.selected_plot_label, alignment=QtCore.Qt.AlignLeft)
+        self.selected_keypoint_layout.addWidget(
+            self.selected_plot_combobox, alignment=QtCore.Qt.AlignLeft)
+        self.selected_keypoint_layout.addWidget(
+            self.selected_keypoint_label, alignment=QtCore.Qt.AlignRight)
+        self.selected_keypoint_layout.addWidget(
+            self.selected_keypoint_combobox, alignment=QtCore.Qt.AlignRight)
 
         self.right_vbox.addLayout(
             self.selected_keypoint_layout)
@@ -154,10 +179,9 @@ class GUI(QtWidgets.QMainWindow):
         self.vector = self.sc.axes.quiver(
             0, 0, 0, 0, angles='xy', scale_units='xy', scale=1)
         self.right_vbox.addWidget(self.sc)
-        self.sc.axes.set_xlim(-1000, 1000)
-        self.sc.axes.set_ylim(-1000, 1000)
-        self.sc.axes.set_xlabel("px/s")
-        self.sc.axes.set_ylabel("px/s")
+
+        # 2D PLOT
+        self._2d_plot = self.sc.axes.scatter([0], [0])
 
         # LOGO
         self.logo = QtWidgets.QLabel()
@@ -186,10 +210,13 @@ class GUI(QtWidgets.QMainWindow):
         self.file_path = ""
         self.processing = False
         self.selected_keypoint = 0
+        self.selected_plot = 0
         self.prev_value = [0, 0]
+        self.i = 0
 
     def selection_change(self, i):
         self.network_index = i
+        self.show_output()
         # self.show_output()
 
     def check_all(self):
@@ -273,50 +300,65 @@ class GUI(QtWidgets.QMainWindow):
     def show_video(self):
         video = cv2.VideoCapture(self.file_path)
         fps = video.get(cv2.CAP_PROP_FPS)
-        i = 0
+        self.i = 0
         keypoint_position_prev = torch.tensor([0, 0])
         while True:
             start_time = time.time()
-            self.slider.setValue(i)
+            self.slider.setValue(self.i)
             network = list(self.networks.keys())[self.network_index]
             data = self.networks[network]['Data']
-            if self.networks[network]['Keypoints'][i].shape[0] > 0 and len(self.networks[network]['Keypoints'][i]) > self.selected_keypoint:
-                keypoint_position = self.networks[network]['Keypoints'][i][self.selected_keypoint]
+            if self.networks[network]['Keypoints'][self.i].shape[0] > 0 and len(self.networks[network]['Keypoints'][self.i]) > self.selected_keypoint:
+                keypoint_position = self.networks[network]['Keypoints'][self.i][self.selected_keypoint]
             else:
                 keypoint_position = None
             number_of_frames = len(data)
             if len(self.networks[network]['Data']) > 0:
-                frame = data[i]
+                frame = data[self.i]
+
             if keypoint_position is not None:
                 processed_frame = cv2.circle(
                     copy.copy(frame), (int(keypoint_position[0]), int(keypoint_position[1])), 5, (255, 50, 50), 3)
-                new_vector_value = self.calculate_new_vector(
-                    keypoint_position, fps)
-                self.move_vector(new_vector_value)
-                self.prev_value = keypoint_position
-                keypoint_position_prev = keypoint_position
             else:
-                processed_frame = copy.copy(frame)
+                processed_frame = frame
+
+            self.sc.axes.draw_artist(self.sc.axes.patch)
+            if self.selected_plot == 0:
+                self.sc.axes.set_xlim(-1000, 1000)
+                self.sc.axes.set_ylim(-1000, 1000)
+                self.sc.axes.set_xlabel("px/s")
+                self.sc.axes.set_ylabel("px/s")
+                self._process_vector(
+                    frame, keypoint_position, fps)
+                self.sc.axes.draw_artist(self.vector)
+            elif self.selected_plot == 1:
+                self.sc.axes.set_xlim(0, frame.shape[0])
+                self.sc.axes.set_ylim(0, frame.shape[0])
+                # self.sc.axes.set_xlabel("px/s")
+                # self.sc.axes.set_ylabel("px/s")
+                keypoints = self.networks[network]['Keypoints'][self.i]
+                self._process_3d(frame.shape[1], keypoints)
+                self.sc.axes.draw_artist(self._2d_plot)
+            self.sc.fig.canvas.update()
+            self.sc.fig.canvas.flush_events()
+
             self.image_window.set_image_data(
                 cv2.cvtColor(processed_frame, cv2.COLOR_RGB2BGR))
-            time.sleep(1/fps - (time.time() - start_time))
+            sleep_time = 1/fps - (time.time() - start_time)
+            if sleep_time >= 0:
+                time.sleep(sleep_time)
 
             # Calculate new vector based on the current and previous value
-            i = self.slider.value()
+            self.i = self.slider.value()
             self.slider.setMaximum(number_of_frames-1)
 
-            if self.play_button_status and i < len(self.networks[network]['Data'])-1:
-                i += 1
+            if self.play_button_status and self.i < len(self.networks[network]['Data'])-1:
+                self.i += 1
             if self.processing:
                 return
 
     def move_vector(self, new_value):
         self.vector.set_UVC(new_value[0], new_value[1])
         # self.sc.fig.canvas.draw()
-        self.sc.axes.draw_artist(self.sc.axes.patch)
-        self.sc.axes.draw_artist(self.vector)
-        self.sc.fig.canvas.update()
-        self.sc.fig.canvas.flush_events()
 
     def change_play_button(self):
         if self.play_button_status:
@@ -333,6 +375,40 @@ class GUI(QtWidgets.QMainWindow):
 
     def _selected_keypoint_change(self, i):
         self.selected_keypoint = int(i)
+
+    def _selected_plot_change(self, i):
+        self.selected_plot = int(i)
+
+    def _process_vector(self, frame, keypoint_position, fps):
+        self.sc.axes.set_xlim(-1000, 1000)
+        self.sc.axes.set_ylim(-1000, 1000)
+        self.sc.axes.set_xlabel("px/s")
+        self.sc.axes.set_ylabel("px/s")
+        if keypoint_position is not None:
+
+            new_vector_value = self.calculate_new_vector(
+                keypoint_position, fps)
+            self.move_vector(new_vector_value)
+            self.prev_value = keypoint_position
+
+    def _process_3d(self, frame_y_shape, keypoints):
+        x = keypoints[:, 0]
+        y = keypoints[:, 1]
+        y = torch.tensor([frame_y_shape]*len(y)) - y + 200
+        self._2d_plot.set_offsets(np.c_[x, y])
+
+    def _prev_frame(self):
+        if self.i > 0:
+            self.i -= 1
+            self.slider.setValue(self.i)
+        print("-")
+
+    def _next_frame(self):
+        network = list(self.networks.keys())[self.network_index]
+        if self.i < len(self.networks[network]['Data'])-1:
+            self.i += 1
+            self.slider.setValue(self.i)
+        print("+")
 
     def show(self):
         self.MainWindow.show()

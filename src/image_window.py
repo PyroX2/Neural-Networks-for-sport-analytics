@@ -14,14 +14,7 @@ os.environ['QT_QPA_PLATFORM_PLUGIN_PATH'] = envpath
 class ImageWindow(QtWidgets.QMainWindow):
     def __init__(self):
         super(QtWidgets.QMainWindow, self).__init__()
-        # self.nn_image = QImage(
-        #     image, image.shape[0], image.shape[1], image.shape[0]*3, QImage.Format_BGR888)
         self.pixmap_label = QtWidgets.QLabel()
-        # self.nn_pixmap = QtGui.QPixmap(self.nn_image)
-        # self.pixmap_label.setPixmap(self.nn_pixmap)
-        # self.main_page_layout.addWidget(self.pixmap_label)
-
-        # self.main_widget.setLayout(self.main_page_layout)
 
     def set_image_data(self, data):
         image = np.array(data)
