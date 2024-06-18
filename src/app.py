@@ -1,5 +1,5 @@
-import PyQt5
-from PyQt5 import QtWidgets, QtGui, QtCore
+import PyQt6
+from PyQt6 import QtWidgets, QtGui, QtCore
 import sys
 import copy
 import time
@@ -38,7 +38,7 @@ class GUI(QtWidgets.QMainWindow):
         # MAIN PAGE
         self.MainWindow = QtWidgets.QWidget()
         self.MainWindow.resize(1000, 600)
-        self.MainWindow.setStyleSheet("background-color: white;")
+        # self.MainWindow.setStyleSheet("background-color: white;")
         self.MainWindow.setWindowTitle("NNs for sport analytics")
         self.main_page_layout = QtWidgets.QGridLayout()
 
@@ -76,9 +76,9 @@ class GUI(QtWidgets.QMainWindow):
 
         self.currently_displayed_layout = QtWidgets.QHBoxLayout()
         self.currently_displayed_layout.addWidget(
-            self.currently_displayed, alignment=QtCore.Qt.AlignRight)
+            self.currently_displayed, alignment=QtCore.Qt.AlignmentFlag.AlignRight)
         self.currently_displayed_layout.addWidget(
-            self.currently_displayed_combobox, alignment=QtCore.Qt.AlignRight)
+            self.currently_displayed_combobox, alignment=QtCore.Qt.AlignmentFlag.AlignRight)
 
         for key in self.networks.keys():
             self.currently_displayed_combobox.addItem(key)
@@ -88,7 +88,7 @@ class GUI(QtWidgets.QMainWindow):
         self.right_vbox.addLayout(
             self.currently_displayed_layout)
         self.right_vbox.setAlignment(
-            self.currently_displayed_layout, QtCore.Qt.AlignRight)
+            self.currently_displayed_layout, QtCore.Qt.AlignmentFlag.AlignRight)
 
         # IMAGE WINDOW
         self.image_window = ImageWindow()
@@ -106,7 +106,7 @@ class GUI(QtWidgets.QMainWindow):
         self.video_layout.addWidget(self.play_button)
 
         # SLIDER
-        self.slider = QtWidgets.QSlider(QtCore.Qt.Horizontal)
+        self.slider = QtWidgets.QSlider(QtCore.Qt.Orientation.Horizontal)
         self.slider.setMinimum(0)
         self.slider.setMaximum(100)
         self.video_layout.addWidget(self.slider)
@@ -161,18 +161,18 @@ class GUI(QtWidgets.QMainWindow):
         self.selected_keypoint_layout = QtWidgets.QHBoxLayout()
         # Add widgets
         self.selected_keypoint_layout.addWidget(
-            self.selected_plot_label, alignment=QtCore.Qt.AlignLeft)
+            self.selected_plot_label, alignment=QtCore.Qt.AlignmentFlag.AlignLeft)
         self.selected_keypoint_layout.addWidget(
-            self.selected_plot_combobox, alignment=QtCore.Qt.AlignLeft)
+            self.selected_plot_combobox, alignment=QtCore.Qt.AlignmentFlag.AlignLeft)
         self.selected_keypoint_layout.addWidget(
-            self.selected_keypoint_label, alignment=QtCore.Qt.AlignRight)
+            self.selected_keypoint_label, alignment=QtCore.Qt.AlignmentFlag.AlignRight)
         self.selected_keypoint_layout.addWidget(
-            self.selected_keypoint_combobox, alignment=QtCore.Qt.AlignRight)
+            self.selected_keypoint_combobox, alignment=QtCore.Qt.AlignmentFlag.AlignRight)
 
         self.right_vbox.addLayout(
             self.selected_keypoint_layout)
         self.right_vbox.setAlignment(
-            self.selected_keypoint_layout, QtCore.Qt.AlignRight)
+            self.selected_keypoint_layout, QtCore.Qt.AlignmentFlag.AlignRight)
 
         # VECTOR
         self.sc = MplCanvas(self, width=5, height=4, dpi=100)
@@ -184,16 +184,16 @@ class GUI(QtWidgets.QMainWindow):
         self._2d_plot = self.sc.axes.scatter([0], [0])
 
         # LOGO
-        self.logo = QtWidgets.QLabel()
-        self.pixmap = QtGui.QPixmap(
-            '/home/jakub/inzynierka/app/images/Qt_logo.png')
-        self.pixmap = self.pixmap.scaled(100, 75)
-        self.logo.setPixmap(self.pixmap)
+        # self.logo = QtWidgets.QLabel()
+        # self.pixmap = QtGui.QPixmap(
+        #     '/home/jakub/inzynierka/app/images/Qt_logo.png')
+        # self.pixmap = self.pixmap.scaled(100, 75)
+        # self.logo.setPixmap(self.pixmap)
 
-        self.right_vbox.addWidget(
-            self.logo)
-        self.right_vbox.setAlignment(
-            self.logo, QtCore.Qt.AlignRight | QtCore.Qt.AlignBottom)
+        # self.right_vbox.addWidget(
+        #     self.logo)
+        # self.right_vbox.setAlignment(
+        #     self.logo, QtCore.Qt.AlignmentFlag.AlignRight | QtCore.Qt.AlignmentFlag.AlignBottom)
 
         # MAIN PAGE LAYOUT
         self.MainWindow.setLayout(self.main_page_layout)
@@ -233,10 +233,15 @@ class GUI(QtWidgets.QMainWindow):
                 self.networks[checkbox.text()]["Enabled"] = 0
 
     def openFileNameDialog(self):
-        options = QtWidgets.QFileDialog.Options()
-        options |= QtWidgets.QFileDialog.DontUseNativeDialog
-        file_path, _ = QtWidgets.QFileDialog.getOpenFileName(
-            self.MainWindow, "File Dialog", "", "All Files (*);;Video Files (*.mp4);;Image Files (*.jpg)", options=options)
+        dialog = QtWidgets.QFileDialog(self)
+        dialog.setDirectory('./')
+        dialog.setFileMode(QtWidgets.QFileDialog.FileMode.ExistingFiles)
+        # dialog.setNameFilter("Images (*.png *.jpg), Videos (*.mp4)")
+        dialog.setViewMode(QtWidgets.QFileDialog.ViewMode.List)
+        if dialog.exec():
+            filenames = dialog.selectedFiles()
+            file_path = filenames[0]
+
         if file_path:
             self.file_path = file_path
 
@@ -418,7 +423,7 @@ def main():
     app = QtWidgets.QApplication(sys.argv)
     gui = GUI()
     gui.show()
-    app.exec_()
+    app.exec()
 
 
 if __name__ == '__main__':
