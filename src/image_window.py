@@ -1,6 +1,6 @@
-import PyQt5
-from PyQt5 import QtWidgets, QtGui, QtCore
-from PyQt5.QtGui import QImage
+import PyQt6
+from PyQt6 import QtWidgets, QtGui, QtCore
+from PyQt6.QtGui import QImage
 import cv2
 import sys
 import os
@@ -20,7 +20,7 @@ class ImageWindow(QtWidgets.QMainWindow):
         image = np.array(data)
         image = image.reshape(image.shape[1], image.shape[0], image.shape[2])
         nn_image = QImage(
-            image, image.shape[0], image.shape[1], image.shape[0]*3, QImage.Format_BGR888)
+            image, image.shape[0], image.shape[1], image.shape[0]*3, QImage.Format.Format_BGR888)
         nn_pixmap = QtGui.QPixmap(nn_image)
         self.pixmap_label.setPixmap(nn_pixmap)
 
