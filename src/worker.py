@@ -3,7 +3,7 @@ Implementation of Worker for MultiThreading
 Multithreading is needed because of the time that
 each neural network needs for processing the data
 '''
-from PyQt5.QtCore import QRunnable, QThreadPool, pyqtSlot, pyqtSignal, QObject
+from PyQt6.QtCore import QRunnable, QThreadPool, pyqtSlot, pyqtSignal, QObject
 import traceback
 import sys
 
