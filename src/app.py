@@ -183,18 +183,6 @@ class GUI(QtWidgets.QMainWindow):
         # 2D PLOT
         self._2d_plot = self.sc.axes.scatter([0], [0])
 
-        # LOGO
-        # self.logo = QtWidgets.QLabel()
-        # self.pixmap = QtGui.QPixmap(
-        #     '/home/jakub/inzynierka/app/images/Qt_logo.png')
-        # self.pixmap = self.pixmap.scaled(100, 75)
-        # self.logo.setPixmap(self.pixmap)
-
-        # self.right_vbox.addWidget(
-        #     self.logo)
-        # self.right_vbox.setAlignment(
-        #     self.logo, QtCore.Qt.AlignmentFlag.AlignRight | QtCore.Qt.AlignmentFlag.AlignBottom)
-
         # MAIN PAGE LAYOUT
         self.MainWindow.setLayout(self.main_page_layout)
 
@@ -263,8 +251,8 @@ class GUI(QtWidgets.QMainWindow):
             network_interface = self.networks[network]['Interface']
             if network_interface is None:
                 continue
-            worker = Worker(network_interface,
-                            runtype, self.file_path, self.progress_bar)
+            worker = Worker(copy.copy(network_interface),
+                            runtype, copy.copy(self.file_path))
             self.threadpool.start(worker)
             worker.signals.result.connect(self.save_output)
 

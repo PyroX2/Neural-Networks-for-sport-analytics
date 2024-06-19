@@ -37,7 +37,7 @@ def draw_landmarks_on_image(rgb_image, detection_result):
     return annotated_image, np.array(landmarks)
 
 
-def process_mediapipe(runtype, path, progress_bar):
+def process_mediapipe(runtype, path):
     PoseLandmarker = mp.tasks.vision.PoseLandmarker
     VisionRunningMode = mp.tasks.vision.RunningMode
 
@@ -72,7 +72,6 @@ def process_mediapipe(runtype, path, progress_bar):
                     numpy_frame, detection_result)
                 frames.append(pose_landmarker_result)
                 all_landmarks.append(landmarks)
-                # progress_bar.setValue(int(100*i/length))
                 ret, frame = video.read()
             return frames, all_landmarks, 'MediaPipe'
         elif runtype == 'Image':
