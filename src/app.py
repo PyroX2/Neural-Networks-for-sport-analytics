@@ -1,11 +1,8 @@
-import PyQt6
-from PyQt6 import QtWidgets, QtGui, QtCore
+from PyQt6 import QtWidgets, QtCore
 import sys
 import copy
 import time
 import matplotlib
-from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg
-from matplotlib.figure import Figure
 import os
 import mediapipe_interface
 import yolo_interface
@@ -14,20 +11,11 @@ from worker import Worker
 from image_window import ImageWindow
 import numpy as np
 import torch
-import utils
-
+from plt_canvas import PltCanvas
 
 matplotlib.use("Qt5Agg")
 envpath = '/home/jakub/.local/lib/python3.10/site-packages/cv2/qt/plugins/platforms'
 os.environ['QT_QPA_PLATFORM_PLUGIN_PATH'] = envpath
-
-
-class MplCanvas(FigureCanvasQTAgg):
-
-    def __init__(self, parent=None, width=5, height=4, dpi=100):
-        self.fig = Figure(figsize=(width, height), dpi=dpi)
-        self.axes = self.fig.add_subplot(111)
-        super(MplCanvas, self).__init__(self.fig)
 
 
 class GUI(QtWidgets.QMainWindow):
@@ -36,10 +24,10 @@ class GUI(QtWidgets.QMainWindow):
         self.initialize_variables()
 
         # MAIN PAGE
-        self.MainWindow = QtWidgets.QWidget()
-        self.MainWindow.resize(1000, 600)
-        # self.MainWindow.setStyleSheet("background-color: white;")
-        self.MainWindow.setWindowTitle("NNs for sport analytics")
+        self.central_widget = QtWidgets.QWidget()
+        self.central_widget.resize(1000, 600)
+        # self.central_widget.setStyleSheet("background-color: white;")
+        self.central_widget.setWindowTitle("NNs for sport analytics")
         self.main_page_layout = QtWidgets.QGridLayout()
 
         # LAYOUTS
@@ -54,10 +42,10 @@ class GUI(QtWidgets.QMainWindow):
 
         self.checkboxes = []
 
-        self.check_all_button = QtWidgets.QPushButton()
-        self.check_all_button.setText("Check All")
-        self.check_all_button.clicked.connect(self.check_all)
-        self.checkbox_layout.addWidget(self.check_all_button)
+        check_all_button = QtWidgets.QPushButton()
+        check_all_button.setText("Check All")
+        check_all_button.clicked.connect(self.check_all)
+        self.checkbox_layout.addWidget(check_all_button)
 
         for i, key in enumerate(self.networks.keys()):
             checkbox = QtWidgets.QCheckBox(key)
@@ -137,7 +125,7 @@ class GUI(QtWidgets.QMainWindow):
         self.right_vbox.addWidget(self.process_button)
 
         # PROGRESS BAR
-        self.progress_bar = QtWidgets.QProgressBar(self.MainWindow)
+        self.progress_bar = QtWidgets.QProgressBar(self.central_widget)
         self.progress_bar.setGeometry(30, 40, 200, 25)
         self.right_vbox.addWidget(self.progress_bar)
 
@@ -175,7 +163,7 @@ class GUI(QtWidgets.QMainWindow):
             self.selected_keypoint_layout, QtCore.Qt.AlignmentFlag.AlignRight)
 
         # VECTOR
-        self.sc = MplCanvas(self, width=5, height=4, dpi=100)
+        self.sc = PltCanvas(width=5, height=4, dpi=100)
         self.vector = self.sc.axes.quiver(
             0, 0, 0, 0, angles='xy', scale_units='xy', scale=1)
         self.right_vbox.addWidget(self.sc)
@@ -184,10 +172,14 @@ class GUI(QtWidgets.QMainWindow):
         self._2d_plot = self.sc.axes.scatter([0], [0])
 
         # MAIN PAGE LAYOUT
-        self.MainWindow.setLayout(self.main_page_layout)
+        self.central_widget.setLayout(self.main_page_layout)
 
         # MULTITHREADING
         self.threadpool = QtCore.QThreadPool()
+
+        self.setCentralWidget(self.central_widget)
+
+        self.show()
 
     def initialize_variables(self):
         self.networks = {'YOLO': {"Enabled": 0, "Interface": yolo_interface.process_yolo, "Data": [], "Processed": False, "Keypoints": []},
@@ -224,14 +216,10 @@ class GUI(QtWidgets.QMainWindow):
         dialog = QtWidgets.QFileDialog(self)
         dialog.setDirectory('./')
         dialog.setFileMode(QtWidgets.QFileDialog.FileMode.ExistingFiles)
-        # dialog.setNameFilter("Images (*.png *.jpg), Videos (*.mp4)")
         dialog.setViewMode(QtWidgets.QFileDialog.ViewMode.List)
         if dialog.exec():
             filenames = dialog.selectedFiles()
-            file_path = filenames[0]
-
-        if file_path:
-            self.file_path = file_path
+            self.file_path = filenames[0]
 
     def process_file(self):
         self.processing = True
@@ -403,14 +391,14 @@ class GUI(QtWidgets.QMainWindow):
             self.slider.setValue(self.i)
         print("+")
 
-    def show(self):
-        self.MainWindow.show()
+    # def show(self):
+    #     self.central_widget.show()
 
 
 def main():
     app = QtWidgets.QApplication(sys.argv)
     gui = GUI()
-    gui.show()
+    # gui.show()
     app.exec()
 
 
