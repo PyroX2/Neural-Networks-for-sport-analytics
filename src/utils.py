@@ -31,6 +31,7 @@ def draw_keypoints(landmarks: torch.Tensor, image: np.array, skeleton: tuple) ->
     # If landmarks list is empty return original image
     if len(landmarks) == 0:
         return image
+
     # Extract every point
     for i, (start_point, end_point) in enumerate(skeleton):
         # Skip point if it is 0
