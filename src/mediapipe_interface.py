@@ -5,10 +5,11 @@ from mediapipe import solutions
 from mediapipe.framework.formats import landmark_pb2
 import numpy as np
 import cv2
+import torch
 
 
 def draw_landmarks_on_image(rgb_image: np.array,
-                            detection_result: mp.tasks.vision.PoseLandmarkerResult) -> tuple[np.array, list]:
+                            detection_result: mp.tasks.vision.PoseLandmarkerResult) -> tuple[np.array, torch.tensor]:
     # Extract list with landmarks and create a copy of an image
     pose_landmarks_list = detection_result.pose_landmarks
     annotated_image = np.copy(rgb_image)
@@ -42,7 +43,7 @@ def draw_landmarks_on_image(rgb_image: np.array,
             solutions.pose.POSE_CONNECTIONS,
             solutions.drawing_styles.get_default_pose_landmarks_style())
 
-    return annotated_image, landmarks
+    return annotated_image, torch.tensor(landmarks)
 
 
 # Function for processing of images and videos
@@ -65,7 +66,7 @@ def process_mediapipe(runtype: str, path: str) -> tuple[list, list, str]:
         if runtype == 'Video':
 
             # List to store all landmarks and frames
-            all_landmarks = []
+            all_landmarks = []  # List of landmarks as torch tensors
             frames = []
 
             # Read video
@@ -83,11 +84,12 @@ def process_mediapipe(runtype: str, path: str) -> tuple[list, list, str]:
             # Loop for processing each frame
             for i in range(length):
                 # Read image as mp.Image type
-                frame = mp.Image(image_format=mp.ImageFormat.SRGB, data=frame)
+                mp_frame = mp.Image(
+                    image_format=mp.ImageFormat.SRGB, data=frame)
 
                 # Process single image
                 detection_result = landmarker.detect(
-                    frame)
+                    mp_frame)
 
                 # Read image as numpy array
                 numpy_frame = np.array(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
