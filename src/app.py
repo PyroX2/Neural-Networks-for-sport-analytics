@@ -14,38 +14,42 @@ import torch
 from plt_canvas import PltCanvas
 
 matplotlib.use("Qt5Agg")
-envpath = '/home/jakub/.local/lib/python3.10/site-packages/cv2/qt/plugins/platforms'
+user_name = os.getenv("USER")
+envpath = f'/home/{user_name}/.local/lib/python3.10/site-packages/cv2/qt/plugins/platforms'
 os.environ['QT_QPA_PLATFORM_PLUGIN_PATH'] = envpath
 
 
 class GUI(QtWidgets.QMainWindow):
     def __init__(self):
         super(QtWidgets.QMainWindow, self).__init__()
+
+        # Initialize variables besides GUI widgets
         self.initialize_variables()
 
         # MAIN PAGE
         self.central_widget = QtWidgets.QWidget()
         self.central_widget.resize(1000, 600)
-        # self.central_widget.setStyleSheet("background-color: white;")
         self.central_widget.setWindowTitle("NNs for sport analytics")
-        self.main_page_layout = QtWidgets.QGridLayout()
 
-        # LAYOUTS
-        self.left_vbox = QtWidgets.QVBoxLayout()
-        self.right_vbox = QtWidgets.QVBoxLayout()
-
+        # Initialize layouts
+        self.main_page_layout = QtWidgets.QGridLayout()  # Grid layout for main page
+        self.left_vbox = QtWidgets.QVBoxLayout()  # Left vertical box
+        self.right_vbox = QtWidgets.QVBoxLayout()  # Right vertical box
+        # Add left vbox to main layout
         self.main_page_layout.addLayout(self.left_vbox, 0, 0)
+        # Add right vbox to main layout
         self.main_page_layout.addLayout(self.right_vbox, 0, 1)
 
-        # CHECKBOX
+        # NEURAL NETWORK CHECKBOX
         self.checkbox_layout = QtWidgets.QHBoxLayout()
 
-        self.checkboxes = []
-
+        # Button to check all neural networks as active
         check_all_button = QtWidgets.QPushButton()
         check_all_button.setText("Check All")
-        check_all_button.clicked.connect(self.check_all)
+        check_all_button.clicked.connect(self.check_all_networks)
         self.checkbox_layout.addWidget(check_all_button)
+
+        self.checkboxes = []
 
         for i, key in enumerate(self.networks.keys()):
             checkbox = QtWidgets.QCheckBox(key)
@@ -71,7 +75,7 @@ class GUI(QtWidgets.QMainWindow):
         for key in self.networks.keys():
             self.currently_displayed_combobox.addItem(key)
         self.currently_displayed_combobox.currentIndexChanged.connect(
-            self.selection_change)
+            self.network_selection_change)
 
         self.right_vbox.addLayout(
             self.currently_displayed_layout)
@@ -113,7 +117,7 @@ class GUI(QtWidgets.QMainWindow):
 
         # FILE DIALOG BUTTON
         self.file_dialog_button = QtWidgets.QPushButton()
-        self.file_dialog_button.clicked.connect(self.openFileNameDialog)
+        self.file_dialog_button.clicked.connect(self.open_file_dialog)
         self.file_dialog_button.setText("Choose file")
         self.right_vbox.addWidget(self.file_dialog_button)
 
@@ -181,30 +185,37 @@ class GUI(QtWidgets.QMainWindow):
 
         self.show()
 
+    # Initialize variables not related to GUI
     def initialize_variables(self):
+        # Dictionary for data related to each neural network
         self.networks = {'YOLO': {"Enabled": 0, "Interface": yolo_interface.process_yolo, "Data": [], "Processed": False, "Keypoints": []},
                          'MediaPipe': {"Enabled": 0, "Interface": mediapipe_interface.process_mediapipe, "Data": [], "Processed": False, "Keypoints": []},
                          'OpenPifPaf': {"Enabled": 0, "Interface": None, "Data": [], "Processed": False, "Keypoints": []},
                          'OpenPose': {"Enabled": 0, "Interface": None, "Data": [], "Processed": False, "Keypoints": []}}
-        self.network_index = 0
-        self.file_path = ""
-        self.processing = False
-        self.selected_keypoint = 0
-        self.selected_plot = 0
-        self.prev_value = [0, 0]
-        self.i = 0
+        self.network_index = 0  # Currently selected network to be displayed
+        self.file_path = ""  # File path to be processed
+        self.processing = False  # Is the image currently being processed by the NNs
+        self.selected_keypoint = 0  # Currently selected keypoint to be displayed on some plots
+        self.selected_plot = 0  # Currently dipslayed MatPlotLib plot
 
-    def selection_change(self, i):
-        self.network_index = i
-        self.show_output()
-        # self.show_output()
+        # Previous position value for caluclating velocity
+        self.pos_prev_value = [0, 0]
 
-    def check_all(self):
+        # Currently displayed frame
+        self.current_frame = 0
+
+    # Change network index to be displayed
+    def network_selection_change(self, i):
+        self.network_index = i  # This index is selecting the network by the self.networks.keys()
+
+    # Function to check all neural networks as active to be processed
+    def check_all_networks(self):
         for checkbox in self.checkboxes:
             checkbox.setChecked(True)
             key = checkbox.text()
             self.networks[key]["Enabled"] = 1
 
+    # Read if neural network is set as active to be processed and write it to self.networks dictionary
     def checkbox_state(self):
         for i, checkbox in enumerate(self.checkboxes):
             if checkbox.isChecked():
@@ -212,35 +223,51 @@ class GUI(QtWidgets.QMainWindow):
             else:
                 self.networks[checkbox.text()]["Enabled"] = 0
 
-    def openFileNameDialog(self):
+    # Function to open file dialog and select file to be processed
+    def open_file_dialog(self):
         dialog = QtWidgets.QFileDialog(self)
-        dialog.setDirectory('./')
+        dialog.setDirectory('./')  # Open dialog with current directory
         dialog.setFileMode(QtWidgets.QFileDialog.FileMode.ExistingFiles)
+        # Set view as a list
         dialog.setViewMode(QtWidgets.QFileDialog.ViewMode.List)
         if dialog.exec():
             filenames = dialog.selectedFiles()
+
+            # Set file path as first selected file
             self.file_path = filenames[0]
 
+    # Function for starting workers with selected file and NNs
     def process_file(self):
-        self.processing = True
-        file_path, file_extension = os.path.split(self.file_path)
+        self.processing = True  # Set processing flag as True
+        file_path, file_extension = os.path.split(
+            self.file_path)  # Extract file extension
+
+        # Set correct runtype
         if file_extension[-4:] == ".mp4":
             runtype = "Video"
         elif file_extension[-4:] == ".jpg":
             runtype = "Image"
         else:
-            return
+            return '''TODO: ERROR SHOULD BE DISPLAYED'''
 
         for network in self.networks.keys():
+            # If network is not enabled continue to next one
             if self.networks[network]['Enabled'] == 0:
                 self.networks[network]['Processed'] = True
                 self.networks[network]['Data'] = []
                 continue
+
+            # Use interface for selected networks
             network_interface = self.networks[network]['Interface']
+
+            # Check if interface is provided
             if network_interface is None:
-                continue
-            worker = Worker(copy.copy(network_interface),
-                            runtype, copy.copy(self.file_path))
+                raise RuntimeError(
+                    "Selected network doesn't have a proper interface for processing")
+
+            # Start the worker with proper arguments
+            worker = Worker(network_interface,
+                            runtype, self.file_path)
             self.threadpool.start(worker)
             worker.signals.result.connect(self.save_output)
 
@@ -281,20 +308,21 @@ class GUI(QtWidgets.QMainWindow):
     def show_video(self):
         video = cv2.VideoCapture(self.file_path)
         fps = video.get(cv2.CAP_PROP_FPS)
-        self.i = 0
-        keypoint_position_prev = torch.tensor([0, 0])
+        self.current_frame = 0
         while True:
             start_time = time.time()
-            self.slider.setValue(self.i)
+            self.slider.setValue(self.current_frame)
             network = list(self.networks.keys())[self.network_index]
             data = self.networks[network]['Data']
-            if self.networks[network]['Keypoints'][self.i].shape[0] > 0 and len(self.networks[network]['Keypoints'][self.i]) > self.selected_keypoint:
-                keypoint_position = self.networks[network]['Keypoints'][self.i][self.selected_keypoint]
+            print(f'FRAME SHAPE: {np.array(self.networks[network]
+                  ['Keypoints'][self.current_frame]).shape}')
+            if self.networks[network]['Keypoints'][self.current_frame].shape[0] > 0 and len(self.networks[network]['Keypoints'][self.current_frame]) > self.selected_keypoint:
+                keypoint_position = self.networks[network]['Keypoints'][self.current_frame][self.selected_keypoint]
             else:
                 keypoint_position = None
             number_of_frames = len(data)
             if len(self.networks[network]['Data']) > 0:
-                frame = data[self.i]
+                frame = data[self.current_frame]
 
             if keypoint_position is not None:
                 processed_frame = cv2.circle(
@@ -314,9 +342,7 @@ class GUI(QtWidgets.QMainWindow):
             elif self.selected_plot == 1:
                 self.sc.axes.set_xlim(0, frame.shape[0])
                 self.sc.axes.set_ylim(0, frame.shape[0])
-                # self.sc.axes.set_xlabel("px/s")
-                # self.sc.axes.set_ylabel("px/s")
-                keypoints = self.networks[network]['Keypoints'][self.i]
+                keypoints = self.networks[network]['Keypoints'][self.current_frame]
                 self._process_3d(frame.shape[1], keypoints)
                 self.sc.axes.draw_artist(self._2d_plot)
             self.sc.fig.canvas.update()
@@ -328,12 +354,11 @@ class GUI(QtWidgets.QMainWindow):
             if sleep_time >= 0:
                 time.sleep(sleep_time)
 
-            # Calculate new vector based on the current and previous value
-            self.i = self.slider.value()
+            self.current_frame = self.slider.value()
             self.slider.setMaximum(number_of_frames-1)
 
-            if self.play_button_status and self.i < len(self.networks[network]['Data'])-1:
-                self.i += 1
+            if self.play_button_status and self.current_frame < len(self.networks[network]['Data'])-1:
+                self.current_frame += 1
             if self.processing:
                 return
 
@@ -350,8 +375,8 @@ class GUI(QtWidgets.QMainWindow):
             self.play_button.setText("STOP")
 
     def calculate_new_vector(self, current_value, fps):
-        new_vector_x = (current_value[0] - self.prev_value[0]) * fps
-        new_vector_y = (current_value[1] - self.prev_value[1]) * fps
+        new_vector_x = (current_value[0] - self.pos_prev_value[0]) * fps
+        new_vector_y = (current_value[1] - self.pos_prev_value[1]) * fps
         return [new_vector_x, new_vector_y]
 
     def _selected_keypoint_change(self, i):
@@ -370,7 +395,7 @@ class GUI(QtWidgets.QMainWindow):
             new_vector_value = self.calculate_new_vector(
                 keypoint_position, fps)
             self.move_vector(new_vector_value)
-            self.prev_value = keypoint_position
+            self.pos_prev_value = keypoint_position
 
     def _process_3d(self, frame_y_shape, keypoints):
         x = keypoints[:, 0]
@@ -379,26 +404,20 @@ class GUI(QtWidgets.QMainWindow):
         self._2d_plot.set_offsets(np.c_[x, y])
 
     def _prev_frame(self):
-        if self.i > 0:
-            self.i -= 1
-            self.slider.setValue(self.i)
-        print("-")
+        if self.current_frame > 0:
+            self.current_frame -= 1
+            self.slider.setValue(self.current_frame)
 
     def _next_frame(self):
         network = list(self.networks.keys())[self.network_index]
-        if self.i < len(self.networks[network]['Data'])-1:
-            self.i += 1
-            self.slider.setValue(self.i)
-        print("+")
-
-    # def show(self):
-    #     self.central_widget.show()
+        if self.current_frame < len(self.networks[network]['Data'])-1:
+            self.current_frame += 1
+            self.slider.setValue(self.current_frame)
 
 
 def main():
     app = QtWidgets.QApplication(sys.argv)
     gui = GUI()
-    # gui.show()
     app.exec()
 
 
