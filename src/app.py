@@ -309,24 +309,25 @@ class GUI(QtWidgets.QMainWindow):
         self.number_of_frames = len(data)
 
         # Show output
-        self._show_output(data)
+        self.show_output(data)
 
-    def _show_output(self, data: list) -> None:
+    # Show to output by calling appropriate function
+    def show_output(self, data: list) -> None:
         if len(data) == 1:
-            self.show_image(data)
+            self._show_image(data)
         elif len(data) > 1:
             # Starts worker that emits processed frames
             worker = VideoWorker(self.process_frame)
 
             # Connection to receive processed frames
-            worker.signals.result.connect(self.show_video_output)
+            worker.signals.result.connect(self._show_video_output)
 
             self.threadpool.start(worker)  # Starts worker
         else:
             self.image_window.reset()
 
     # Displays image
-    def show_image(self, data: list) -> None:
+    def _show_image(self, data: list) -> None:
         # Display the image
         self.image_window.set_image_data(
             cv2.cvtColor(data[0], cv2.COLOR_RGB2BGR))
@@ -392,7 +393,7 @@ class GUI(QtWidgets.QMainWindow):
         return processed_frame, False
 
     # Function that receives processed frame from worker and draws it
-    def show_video_output(self, frame: np.array) -> None:
+    def _show_video_output(self, frame: np.array) -> None:
         # Sets max value for slider
         self.slider.setMaximum(self.number_of_frames-1)
 
@@ -461,20 +462,24 @@ class GUI(QtWidgets.QMainWindow):
         self.sc.axes.set_ylabel("px/s")
 
     # Process 2D skeleton display
-    def _process_2d(self, frame_y_shape, keypoints):
+    def _process_2d(self, frame_y_shape: int, keypoints: list) -> None:
         x = keypoints[:, 0]
         y = keypoints[:, 1]
         y = torch.tensor([frame_y_shape]*len(y)) - y + 200
         self._2d_plot.set_offsets(np.c_[x, y])
 
-    def _prev_frame(self):
+    # Selects previous frame
+    def _prev_frame(self) -> None:
         if self.current_frame > 0:
             self.current_frame -= 1
             self.slider.setValue(self.current_frame)
 
-    def _next_frame(self):
-        network = list(self.networks.keys())[self.network_index]
-        if self.current_frame < len(self.networks[network]['Data'])-1:
+    # Selects next frame
+    def _next_frame(self) -> None:
+        data = self._get_network_data()
+
+        # Check if next frame is available
+        if self.current_frame < len(data)-1:
             self.current_frame += 1
             self.slider.setValue(self.current_frame)
 
@@ -490,7 +495,7 @@ class GUI(QtWidgets.QMainWindow):
         return data
 
 
-def main():
+def main() -> None:
     app = QtWidgets.QApplication(sys.argv)
     gui = GUI()
     app.exec()
