@@ -12,6 +12,8 @@ from image_window import ImageWindow
 import numpy as np
 import torch
 from plt_canvas import PltCanvas
+from video_worker import VideoWorker
+
 
 matplotlib.use("Qt5Agg")
 user_name = os.getenv("USER")
@@ -20,7 +22,7 @@ os.environ['QT_QPA_PLATFORM_PLUGIN_PATH'] = envpath
 
 
 class GUI(QtWidgets.QMainWindow):
-    def __init__(self):
+    def __init__(self) -> None:
         super(QtWidgets.QMainWindow, self).__init__()
 
         # Initialize variables besides GUI widgets
@@ -186,7 +188,7 @@ class GUI(QtWidgets.QMainWindow):
         self.show()
 
     # Initialize variables not related to GUI
-    def initialize_variables(self):
+    def initialize_variables(self) -> None:
         # Dictionary for data related to each neural network
         self.networks = {'YOLO': {"Enabled": 0, "Interface": yolo_interface.process_yolo, "Data": [], "Processed": False, "Keypoints": []},
                          'MediaPipe': {"Enabled": 0, "Interface": mediapipe_interface.process_mediapipe, "Data": [], "Processed": False, "Keypoints": []},
@@ -205,18 +207,18 @@ class GUI(QtWidgets.QMainWindow):
         self.current_frame = 0
 
     # Change network index to be displayed
-    def network_selection_change(self, i):
+    def network_selection_change(self, i: int) -> None:
         self.network_index = i  # This index is selecting the network by the self.networks.keys()
 
     # Function to check all neural networks as active to be processed
-    def check_all_networks(self):
+    def check_all_networks(self) -> None:
         for checkbox in self.checkboxes:
             checkbox.setChecked(True)
             key = checkbox.text()
             self.networks[key]["Enabled"] = 1
 
     # Read if neural network is set as active to be processed and write it to self.networks dictionary
-    def checkbox_state(self):
+    def checkbox_state(self) -> None:
         for i, checkbox in enumerate(self.checkboxes):
             if checkbox.isChecked():
                 self.networks[checkbox.text()]["Enabled"] = 1
@@ -224,7 +226,7 @@ class GUI(QtWidgets.QMainWindow):
                 self.networks[checkbox.text()]["Enabled"] = 0
 
     # Function to open file dialog and select file to be processed
-    def open_file_dialog(self):
+    def open_file_dialog(self) -> None:
         dialog = QtWidgets.QFileDialog(self)
         dialog.setDirectory('./')  # Open dialog with current directory
         dialog.setFileMode(QtWidgets.QFileDialog.FileMode.ExistingFiles)
@@ -236,8 +238,9 @@ class GUI(QtWidgets.QMainWindow):
             # Set file path as first selected file
             self.file_path = filenames[0]
 
-    # Function for starting workers with selected file and NNs
-    def process_file(self):
+    # Function for starting workers with selected file and NNs activated in checkboxes
+    def process_file(self) -> None:
+        self.progress_bar.reset()  # Reset progress bar
         self.processing = True  # Set processing flag as True
         file_path, file_extension = os.path.split(
             self.file_path)  # Extract file extension
@@ -271,101 +274,143 @@ class GUI(QtWidgets.QMainWindow):
             self.threadpool.start(worker)
             worker.signals.result.connect(self.save_output)
 
-    def save_output(self, output):
-        self.networks[output[2]]['Data'] = output[0]
-        self.networks[output[2]]['Keypoints'] = output[1]
+    # Function activated when workers responsible for passing videos through neural networks finish their work.
+    # This function saves outputs in appropriate places in self.networks dictionary
+    def save_output(self, output: tuple) -> None:
+        # Saves processed frames with skeletons drawn
+        self.networks[output[2]]['Data'] = output[0]  # List
+
+        # Saves keypoints positions on each frame
+        self.networks[output[2]]['Keypoints'] = output[1]  # List
+
+        # Indicates that processing of this neural network is finished
         self.networks[output[2]]['Processed'] = True
-        self.progress_bar.setValue(100)
+
+        # Checks if all neural networks finished processing. If not returns
         for network in self.networks.keys():
             if not self.networks[network]['Processed']:
                 return
-        # This executes only if all networks are processed
+
+        # If all neural networks finished processing set progress bar value to 100
+        self.progress_bar.setValue(100)
+
+        # Reset 'Processed' flags for all NNs
         for network in self.networks.keys():
             self.networks[network]['Processed'] = False
-        self.processing = False
-        self.show_output()
 
-    def show_output(self):
-        network = list(self.networks.keys())[self.network_index]
-        data = self.networks[network]['Data']
+        self.processing = False  # Flag indicating that processing is finished
+
+        self.current_frame = 0  # Resets the video
+
+        # Gets data for currently selected neural network
+        data = self.networks[self._get_network_name()]['Data']
+
+        # Reads number of total frames for slider
+        self.number_of_frames = len(data)
+
+        # Show output
+        self._show_output(data)
+
+    def _show_output(self, data: list) -> None:
         if len(data) == 1:
-            self.show_image()
+            self.show_image(data)
         elif len(data) > 1:
-            worker = Worker(self.show_video)
-            self.threadpool.start(worker)
-        else:
-            self.progress_bar.reset()
-            self.image_window.reset()
-            return
-        self.progress_bar.reset()
+            # Starts worker that emits processed frames
+            worker = VideoWorker(self.process_frame)
 
-    def show_image(self):
-        network = list(self.networks.keys())[self.network_index]
-        data = self.networks[network]['Data']
+            # Connection to receive processed frames
+            worker.signals.result.connect(self.show_video_output)
+
+            self.threadpool.start(worker)  # Starts worker
+        else:
+            self.image_window.reset()
+
+    # Displays image
+    def show_image(self, data: list) -> None:
+        # Display the image
         self.image_window.set_image_data(
             cv2.cvtColor(data[0], cv2.COLOR_RGB2BGR))
 
-    def show_video(self):
-        video = cv2.VideoCapture(self.file_path)
-        fps = video.get(cv2.CAP_PROP_FPS)
-        self.current_frame = 0
-        while True:
-            start_time = time.time()
-            self.slider.setValue(self.current_frame)
-            network = list(self.networks.keys())[self.network_index]
-            data = self.networks[network]['Data']
-            print(f'FRAME SHAPE: {np.array(self.networks[network]
-                  ['Keypoints'][self.current_frame]).shape}')
-            if self.networks[network]['Keypoints'][self.current_frame].shape[0] > 0 and len(self.networks[network]['Keypoints'][self.current_frame]) > self.selected_keypoint:
-                keypoint_position = self.networks[network]['Keypoints'][self.current_frame][self.selected_keypoint]
-            else:
-                keypoint_position = None
-            number_of_frames = len(data)
-            if len(self.networks[network]['Data']) > 0:
-                frame = data[self.current_frame]
+    # Function responsible for processing video frames by the worker
+    def process_frame(self) -> tuple[np.array, bool]:
+        video = cv2.VideoCapture(self.file_path)  # Reads video
+        fps = video.get(cv2.CAP_PROP_FPS)  # Reads video's fps
 
-            if keypoint_position is not None:
-                processed_frame = cv2.circle(
-                    copy.copy(frame), (int(keypoint_position[0]), int(keypoint_position[1])), 5, (255, 50, 50), 3)
-            else:
-                processed_frame = frame
+        # Reads which neural network to use
+        network = self._get_network_name()
 
-            self.sc.axes.draw_artist(self.sc.axes.patch)
-            if self.selected_plot == 0:
-                self.sc.axes.set_xlim(-1000, 1000)
-                self.sc.axes.set_ylim(-1000, 1000)
-                self.sc.axes.set_xlabel("px/s")
-                self.sc.axes.set_ylabel("px/s")
-                self._process_vector(
-                    frame, keypoint_position, fps)
-                self.sc.axes.draw_artist(self.vector)
-            elif self.selected_plot == 1:
-                self.sc.axes.set_xlim(0, frame.shape[0])
-                self.sc.axes.set_ylim(0, frame.shape[0])
-                keypoints = self.networks[network]['Keypoints'][self.current_frame]
-                self._process_3d(frame.shape[1], keypoints)
-                self.sc.axes.draw_artist(self._2d_plot)
-            self.sc.fig.canvas.update()
-            self.sc.fig.canvas.flush_events()
+        # Reads current neural network data
+        data = self.networks[network]['Data']
 
-            self.image_window.set_image_data(
-                cv2.cvtColor(processed_frame, cv2.COLOR_RGB2BGR))
-            sleep_time = 1/fps - (time.time() - start_time)
-            if sleep_time >= 0:
-                time.sleep(sleep_time)
+        # Reads current frame if frames for current neural network exist
+        if len(self.networks[network]['Data']) > 0:
+            frame = data[self.current_frame]
 
-            self.current_frame = self.slider.value()
-            self.slider.setMaximum(number_of_frames-1)
+        # Checks if keypoints for the current frame exist and number of keypoints is larger than selected for display keypoint index
+        if self.networks[network]['Keypoints'][self.current_frame].shape[0] > 0 and len(self.networks[network]['Keypoints'][self.current_frame]) > self.selected_keypoint:
+            # Only one keypoint position (currently selected one)
+            keypoint_position = self.networks[network]['Keypoints'][self.current_frame][self.selected_keypoint]
 
-            if self.play_button_status and self.current_frame < len(self.networks[network]['Data'])-1:
-                self.current_frame += 1
-            if self.processing:
-                return
+            # Draw circle around selected keypoint
+            processed_frame = cv2.circle(
+                copy.copy(frame), (int(keypoint_position[0]), int(keypoint_position[1])), 5, (255, 50, 50), 3)
+        else:
+            keypoint_position = None
 
-    def move_vector(self, new_value):
+            # If selected keypoint is not present on current frame it doesn't draw circle
+            processed_frame = frame
+
+        '''
+        This is for additional plots
+        TODO: Put it in function
+        '''
+        self.sc.axes.draw_artist(self.sc.axes.patch)
+        if self.selected_plot == 0:
+            self.sc.axes.set_xlim(-1000, 1000)
+            self.sc.axes.set_ylim(-1000, 1000)
+            self.sc.axes.set_xlabel("px/s")
+            self.sc.axes.set_ylabel("px/s")
+            self._process_vector(
+                frame, keypoint_position, fps)
+            self.sc.axes.draw_artist(self.vector)
+        elif self.selected_plot == 1:
+            self.sc.axes.set_xlim(0, frame.shape[0])
+            self.sc.axes.set_ylim(0, frame.shape[0])
+            keypoints = self.networks[network]['Keypoints'][self.current_frame]
+            self._process_2d(frame.shape[1], keypoints)
+            self.sc.axes.draw_artist(self._2d_plot)
+        self.sc.fig.canvas.update()
+        self.sc.fig.canvas.flush_events()
+
+        # Increment current frame value if possible
+        if self.play_button_status and self.current_frame < len(self.networks[network]['Data'])-1:
+            self.current_frame += 1
+
+        if self.processing:
+            return processed_frame, True
+
+        return processed_frame, False
+
+    # Function that receives processed frame from worker and draws it
+    def show_video_output(self, frame: np.array) -> None:
+        # Sets max value for slider
+        self.slider.setMaximum(self.number_of_frames-1)
+
+        # Sets slider value to current frame value
+        self.slider.setValue(self.current_frame)
+
+        # Draws processed frame
+        self.image_window.set_image_data(
+            cv2.cvtColor(frame, cv2.COLOR_RGB2BGR))
+
+        # Current frame value is slider value
+        self.current_frame = self.slider.value()
+
+    # Changes vector values
+    def set_vector(self, new_value: list) -> None:
         self.vector.set_UVC(new_value[0], new_value[1])
-        # self.sc.fig.canvas.draw()
 
+    # Changes play button status and text displayed on it
     def change_play_button(self):
         if self.play_button_status:
             self.play_button_status = False
@@ -374,30 +419,49 @@ class GUI(QtWidgets.QMainWindow):
             self.play_button_status = True
             self.play_button.setText("STOP")
 
-    def calculate_new_vector(self, current_value, fps):
+    # Calculates the position derivative
+    def calculate_new_vector(self, current_value: list, fps: float) -> list[float, float]:
         new_vector_x = (current_value[0] - self.pos_prev_value[0]) * fps
         new_vector_y = (current_value[1] - self.pos_prev_value[1]) * fps
         return [new_vector_x, new_vector_y]
 
-    def _selected_keypoint_change(self, i):
+    # Changes selected keypoint index
+    def _selected_keypoint_change(self, i: str) -> None:
         self.selected_keypoint = int(i)
 
-    def _selected_plot_change(self, i):
+    # Changes selected plot index
+    def _selected_plot_change(self, i: str) -> None:
         self.selected_plot = int(i)
 
-    def _process_vector(self, frame, keypoint_position, fps):
-        self.sc.axes.set_xlim(-1000, 1000)
-        self.sc.axes.set_ylim(-1000, 1000)
-        self.sc.axes.set_xlabel("px/s")
-        self.sc.axes.set_ylabel("px/s")
-        if keypoint_position is not None:
+    # Processes new vector and plot to display it
+    def _process_vector(self, frame: np.array, keypoint_position: list, fps: float) -> None:
+        # Sets plot params for displaying vector
+        self._set_vector_plot_params()
 
+        # If keypoint position exists calculate new vector
+        if keypoint_position is not None:
+            # Calculate new vector
             new_vector_value = self.calculate_new_vector(
                 keypoint_position, fps)
-            self.move_vector(new_vector_value)
+
+            # Set new vector
+            self.set_vector(new_vector_value)
+
+            # Save current position as previous
             self.pos_prev_value = keypoint_position
 
-    def _process_3d(self, frame_y_shape, keypoints):
+    # Function for configuring params of plt plot for vector display
+    def _set_vector_plot_params(self) -> None:
+        # Set axis limits
+        self.sc.axes.set_xlim(-1000, 1000)
+        self.sc.axes.set_ylim(-1000, 1000)
+
+        # Set axis labels
+        self.sc.axes.set_xlabel("px/s")
+        self.sc.axes.set_ylabel("px/s")
+
+    # Process 2D skeleton display
+    def _process_2d(self, frame_y_shape, keypoints):
         x = keypoints[:, 0]
         y = keypoints[:, 1]
         y = torch.tensor([frame_y_shape]*len(y)) - y + 200
@@ -413,6 +477,17 @@ class GUI(QtWidgets.QMainWindow):
         if self.current_frame < len(self.networks[network]['Data'])-1:
             self.current_frame += 1
             self.slider.setValue(self.current_frame)
+
+    # Returns currently selected network name
+    def _get_network_name(self) -> str:
+        network = list(self.networks.keys())[self.network_index]
+        return network
+
+    # Returns data for currently selected network
+    def _get_network_data(self) -> list:
+        network = self._get_network_name()
+        data = self.networks[network]['Data']
+        return data
 
 
 def main():
