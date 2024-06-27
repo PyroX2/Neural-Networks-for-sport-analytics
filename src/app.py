@@ -103,6 +103,7 @@ class GUI(QtWidgets.QMainWindow):
         self.slider = QtWidgets.QSlider(QtCore.Qt.Orientation.Horizontal)
         self.slider.setMinimum(0)
         self.slider.setMaximum(100)
+        self.slider.valueChanged.connect(self._set_current_frame)
         self.video_layout.addWidget(self.slider)
 
         # PREV FRAME
@@ -404,9 +405,6 @@ class GUI(QtWidgets.QMainWindow):
         self.image_window.set_image_data(
             cv2.cvtColor(frame, cv2.COLOR_RGB2BGR))
 
-        # Current frame value is slider value
-        self.current_frame = self.slider.value()
-
     # Changes vector values
     def set_vector(self, new_value: list) -> None:
         self.vector.set_UVC(new_value[0], new_value[1])
@@ -467,6 +465,10 @@ class GUI(QtWidgets.QMainWindow):
         y = keypoints[:, 1]
         y = torch.tensor([frame_y_shape]*len(y)) - y + 200
         self._2d_plot.set_offsets(np.c_[x, y])
+
+    # Sets current frame from slider value
+    def _set_current_frame(self, i: int) -> None:
+        self.current_frame = i
 
     # Selects previous frame
     def _prev_frame(self) -> None:
