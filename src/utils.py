@@ -1,6 +1,8 @@
 import cv2
 import numpy as np
 import torch
+from skimage.transform import resize
+
 
 # Define colors for each connection in skeleton
 SKELETON_COLORS = (
@@ -46,3 +48,23 @@ def draw_keypoints(landmarks: torch.Tensor, image: np.array, skeleton: tuple) ->
              int(landmarks[end_point][1].item())),
             SKELETON_COLORS[i], 4)
     return image
+
+
+def scale_frame(frame: np.array, x_max: int, y_max: int) -> np.array:
+    # Read X and Y axis sizes
+    x_size, y_size = frame.shape[0], frame.shape[1]
+
+    if x_size > x_max:
+        y_size = y_size*(x_max/x_size)  # y_size times scaling factor
+        x_size = x_max
+
+    # This is not elif because y_size might be still to big after x axis scaling
+    if y_size > y_max:
+        x_size = x_size*(y_max/y_size)  # x_size times scaling factor
+        y_size = y_max
+
+    # Resize frame
+    resized_frame = cv2.resize(frame, dsize=(
+        int(y_size), int(x_size)), interpolation=cv2.INTER_CUBIC)
+    # resized_frame = resize(frame, (x_size, y_size))
+    return resized_frame

@@ -14,6 +14,7 @@ import torch
 from plt_canvas import PltCanvas
 from video_worker import VideoWorker
 from settings import Settings
+import utils
 
 
 matplotlib.use("Qt5Agg")
@@ -208,6 +209,9 @@ class GUI(QtWidgets.QMainWindow):
         # Currently displayed frame
         self.current_frame = 0
 
+        # Add settings
+        self.settings = Settings()
+
     # Change network index to be displayed
     def network_selection_change(self, i: int) -> None:
         self.network_index = i  # This index is selecting the network by the self.networks.keys()
@@ -284,7 +288,6 @@ class GUI(QtWidgets.QMainWindow):
 
         # Saves keypoints positions on each frame
         self.networks[output[2]]['Keypoints'] = output[1]  # List
-        print(f'{output[2]}: {output[1]}')
 
         # Indicates that processing of this neural network is finished
         self.networks[output[2]]['Processed'] = True
@@ -408,6 +411,10 @@ class GUI(QtWidgets.QMainWindow):
         # Sets slider value to current frame value
         self.slider.setValue(self.current_frame)
 
+        # Scale frame so it fits in window
+        frame = utils.scale_frame(
+            frame, self.settings.x_max_image_size, self.settings.y_max_image_size)
+
         # Draws processed frame
         self.image_window.set_image_data(
             cv2.cvtColor(frame, cv2.COLOR_RGB2BGR))
@@ -472,7 +479,6 @@ class GUI(QtWidgets.QMainWindow):
     # Process 2D skeleton display
     def _process_2d(self, frame: np.array, keypoints: torch.tensor) -> None:
         self._set_2d_plot_params(frame.shape)
-        print(f'TYPE: {type(keypoints)}')
         frame_y_shape = frame.shape[1]
 
         if len(keypoints) != 0:
