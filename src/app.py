@@ -32,7 +32,7 @@ class GUI(QtWidgets.QMainWindow):
 
         # MAIN PAGE
         self.central_widget = QtWidgets.QWidget()
-        self.central_widget.resize(1000, 600)
+        self.resize(5000, 5000)
         self.central_widget.setWindowTitle("NNs for sport analytics")
 
         # Initialize layouts
@@ -205,7 +205,7 @@ class GUI(QtWidgets.QMainWindow):
         self.selected_plot = 0  # Currently dipslayed MatPlotLib plot
 
         # Previous position value for caluclating velocity
-        self.pos_prev_value = [0, 0]
+        self.pos_prev_value = torch.zeros((3, 1))
 
         # Currently displayed frame
         self.current_frame = 0
@@ -335,9 +335,12 @@ class GUI(QtWidgets.QMainWindow):
 
     # Displays image
     def _show_image(self, data: list) -> None:
+        frame = utils.scale_frame(
+            data[0], self.settings.x_max_image_size, self.settings.y_max_image_size)
+
         # Display the image
         self.image_window.set_image_data(
-            cv2.cvtColor(data[0], cv2.COLOR_RGB2BGR))
+            cv2.cvtColor(frame, cv2.COLOR_RGB2BGR))
 
     # Function responsible for processing video frames by the worker
     def process_frame(self) -> tuple[np.array, bool]:
@@ -357,7 +360,8 @@ class GUI(QtWidgets.QMainWindow):
         # Checks if keypoints for the current frame exist and number of keypoints is larger than selected for display keypoint index
         if self.networks[network]['Keypoints'][self.current_frame].shape[0] > 0 and len(self.networks[network]['Keypoints'][self.current_frame]) > self.selected_keypoint:
             # Only one keypoint position (currently selected one)
-            keypoint_position = self.networks[network]['Keypoints'][self.current_frame][self.selected_keypoint]
+            keypoint_position = self._get_network_keypoints(
+            )[self.current_frame][self.selected_keypoint]
 
             # Draw circle around selected keypoint
             processed_frame = cv2.circle(
@@ -369,17 +373,15 @@ class GUI(QtWidgets.QMainWindow):
             processed_frame = frame
 
         '''
-        This is for additional plots
-        TODO: Put it in function
+        Additional plots
         '''
-        # Reset plot
-        self.sc.axes.draw_artist(self.sc.axes.patch)
-
-        if self.selected_plot == 0:
+        if self.selected_plot == 0 and keypoint_position is not None:
             self._process_vector(
                 frame, keypoint_position, fps)
-            self.sc.axes.draw_artist(self.vector)
+            self.sc.axes.draw_artist(self.vector)  # Draw new vector
         elif self.selected_plot == 1:
+            self.sc.axes.draw_artist(self.sc.axes.patch)
+
             # Gets all keypoints for current neural network
             keypoints = self._get_network_keypoints()
 
@@ -434,9 +436,9 @@ class GUI(QtWidgets.QMainWindow):
             self.play_button.setText("STOP")
 
     # Calculates the position derivative
-    def calculate_new_vector(self, current_value: list, fps: float) -> list[float, float]:
-        new_vector_x = (current_value[0] - self.pos_prev_value[0]) * fps
-        new_vector_y = (current_value[1] - self.pos_prev_value[1]) * fps
+    def calculate_new_vector(self, current_value: torch.Tensor, prev_keypoint_position: torch.Tensor, fps: float) -> list[float, float]:
+        new_vector_x = (current_value[0] - prev_keypoint_position[0]) * fps
+        new_vector_y = (current_value[1] - prev_keypoint_position[1]) * fps
         return [new_vector_x, new_vector_y]
 
     # Changes selected keypoint index
@@ -448,7 +450,16 @@ class GUI(QtWidgets.QMainWindow):
         self.selected_plot = int(i)
 
     # Processes new vector and plot to display it
-    def _process_vector(self, frame: np.array, keypoint_position: list, fps: float) -> None:
+    def _process_vector(self, frame: np.array, keypoint_position: torch.tensor, fps: float) -> None:
+        try:
+            prev_keypoint_position = self._get_network_keypoints()[self.current_frame -
+                                                                   1][self.selected_keypoint]
+        except:
+            prev_keypoint_position = torch.zeros((3, 1))
+
+        # Reset plot
+        self.sc.axes.draw_artist(self.sc.axes.patch)
+
         # Sets plot params for displaying vector
         self._set_vector_plot_params()
 
@@ -456,7 +467,7 @@ class GUI(QtWidgets.QMainWindow):
         if keypoint_position is not None:
             # Calculate new vector
             new_vector_value = self.calculate_new_vector(
-                keypoint_position, fps)
+                keypoint_position, prev_keypoint_position, fps)
 
             # Set new vector
             self.set_vector(new_vector_value)
