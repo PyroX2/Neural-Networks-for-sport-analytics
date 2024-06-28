@@ -8,7 +8,9 @@ import traceback
 import sys
 
 
+# Worker Signals class for emiting signals outside of thread
 class WorkerSignals(QObject):
+    # Result for storing processed frame
     result = pyqtSignal(object)
 
 
@@ -24,11 +26,14 @@ class VideoWorker(QRunnable):
     @pyqtSlot()
     def run(self):
         while True:
+            # Get processed frame
             frame, finished = self.fn(
                 *self.args, **self.kwargs
             )
+
+            # Send frame for displaying
             self.signals.result.emit(frame)
 
-            print(f'FINISHED: {finished}')
+            # If processing returns finished break loop
             if finished or finished is None:
                 break

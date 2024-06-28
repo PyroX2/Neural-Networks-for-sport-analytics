@@ -410,7 +410,7 @@ class GUI(QtWidgets.QMainWindow):
         self.vector.set_UVC(new_value[0], new_value[1])
 
     # Changes play button status and text displayed on it
-    def change_play_button(self):
+    def change_play_button(self) -> None:
         if self.play_button_status:
             self.play_button_status = False
             self.play_button.setText("PLAY")

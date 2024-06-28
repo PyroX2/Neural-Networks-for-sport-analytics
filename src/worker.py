@@ -8,6 +8,7 @@ import traceback
 import sys
 
 
+# Worker Signals class for emiting signals outside of thread
 class WorkerSignals(QObject):
     finished = pyqtSignal()
     error = pyqtSignal(tuple)
