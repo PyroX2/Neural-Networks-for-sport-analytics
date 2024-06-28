@@ -283,6 +283,7 @@ class GUI(QtWidgets.QMainWindow):
 
         # Saves keypoints positions on each frame
         self.networks[output[2]]['Keypoints'] = output[1]  # List
+        print(f'{output[2]}: {output[1]}')
 
         # Indicates that processing of this neural network is finished
         self.networks[output[2]]['Processed'] = True
@@ -368,18 +369,20 @@ class GUI(QtWidgets.QMainWindow):
         '''
         self.sc.axes.draw_artist(self.sc.axes.patch)
         if self.selected_plot == 0:
-            self.sc.axes.set_xlim(-1000, 1000)
-            self.sc.axes.set_ylim(-1000, 1000)
-            self.sc.axes.set_xlabel("px/s")
-            self.sc.axes.set_ylabel("px/s")
             self._process_vector(
                 frame, keypoint_position, fps)
             self.sc.axes.draw_artist(self.vector)
         elif self.selected_plot == 1:
-            self.sc.axes.set_xlim(0, frame.shape[0])
-            self.sc.axes.set_ylim(0, frame.shape[0])
-            keypoints = self.networks[network]['Keypoints'][self.current_frame]
-            self._process_2d(frame.shape[1], keypoints)
+            # Gets all keypoints for current neural network
+            keypoints = self._get_network_keypoints()
+
+            # Gets only keypoints for current frame
+            keypoints = keypoints[self.current_frame]
+
+            # Process 2D frame
+            self._process_2d(frame, keypoints)
+
+            # Draw 2D skeleton
             self.sc.axes.draw_artist(self._2d_plot)
         self.sc.fig.canvas.update()
         self.sc.fig.canvas.flush_events()
@@ -459,12 +462,31 @@ class GUI(QtWidgets.QMainWindow):
         self.sc.axes.set_xlabel("px/s")
         self.sc.axes.set_ylabel("px/s")
 
+        # Show visual components of x and y axis
+        self.sc.axes.set_axis_on()
+
     # Process 2D skeleton display
-    def _process_2d(self, frame_y_shape: int, keypoints: list) -> None:
-        x = keypoints[:, 0]
-        y = keypoints[:, 1]
-        y = torch.tensor([frame_y_shape]*len(y)) - y + 200
-        self._2d_plot.set_offsets(np.c_[x, y])
+    def _process_2d(self, frame: np.array, keypoints: torch.tensor) -> None:
+        self._set_2d_plot_params(frame.shape)
+        print(f'TYPE: {type(keypoints)}')
+        frame_y_shape = frame.shape[1]
+
+        if len(keypoints) != 0:
+            x = keypoints[:, 0]
+            y = keypoints[:, 1]
+            y = torch.tensor([frame_y_shape]*len(y)) - y
+            self._2d_plot.set_offsets(np.c_[x, y])
+        else:
+            self._2d_plot.set_offsets(np.c_[0, 0])
+
+    # Set params for displaying 2D plot
+    def _set_2d_plot_params(self, frame_shape: tuple) -> None:
+        # Set X and Y axis limits
+        self.sc.axes.set_xlim(0, frame_shape[0])
+        self.sc.axes.set_ylim(0, frame_shape[1])
+
+        # Hide visual components of x and y axis
+        self.sc.axes.set_axis_off()
 
     # Sets current frame from slider value
     def _set_current_frame(self, i: int) -> None:
@@ -495,6 +517,11 @@ class GUI(QtWidgets.QMainWindow):
         network = self._get_network_name()
         data = self.networks[network]['Data']
         return data
+
+    def _get_network_keypoints(self) -> list:
+        network = self._get_network_name()
+        keypoints = self.networks[network]['Keypoints']
+        return keypoints
 
 
 def main() -> None:
