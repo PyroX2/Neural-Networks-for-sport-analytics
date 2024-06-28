@@ -88,7 +88,8 @@ class GUI(QtWidgets.QMainWindow):
 
         # IMAGE WINDOW
         self.image_window = ImageWindow()
-        self.left_vbox.addWidget(self.image_window.pixmap_label)
+        self.left_vbox.addWidget(
+            self.image_window.pixmap_label, alignment=QtCore.Qt.AlignmentFlag.AlignCenter)
 
         # VIDEO MANIPULATION LAYOUT
         self.video_layout = QtWidgets.QHBoxLayout()
