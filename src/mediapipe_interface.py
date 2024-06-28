@@ -47,7 +47,7 @@ def draw_landmarks_on_image(rgb_image: np.array,
 
 
 # Function for processing of images and videos
-def process_mediapipe(runtype: str, path: str) -> tuple[list, list, str]:
+def process_mediapipe(runtype: str, path: str) -> tuple[list, list[torch.tensor], str]:
     PoseLandmarker = mp.tasks.vision.PoseLandmarker
     VisionRunningMode = mp.tasks.vision.RunningMode
 
