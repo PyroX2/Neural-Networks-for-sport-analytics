@@ -13,6 +13,7 @@ import numpy as np
 import torch
 from plt_canvas import PltCanvas
 from video_worker import VideoWorker
+from settings import Settings
 
 
 matplotlib.use("Qt5Agg")
@@ -367,7 +368,9 @@ class GUI(QtWidgets.QMainWindow):
         This is for additional plots
         TODO: Put it in function
         '''
+        # Reset plot
         self.sc.axes.draw_artist(self.sc.axes.patch)
+
         if self.selected_plot == 0:
             self._process_vector(
                 frame, keypoint_position, fps)
@@ -384,6 +387,7 @@ class GUI(QtWidgets.QMainWindow):
 
             # Draw 2D skeleton
             self.sc.axes.draw_artist(self._2d_plot)
+        # Update plot
         self.sc.fig.canvas.update()
         self.sc.fig.canvas.flush_events()
 
