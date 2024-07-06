@@ -310,7 +310,7 @@ class GUI(QtWidgets.QMainWindow):
         self.current_frame = 0  # Resets the video
 
         # Gets data for currently selected neural network
-        data = self.networks[self._get_network_name()]['Data']
+        data = self._get_network_data()
 
         # Reads number of total frames for slider
         self.number_of_frames = len(data)
@@ -351,30 +351,34 @@ class GUI(QtWidgets.QMainWindow):
         network = self._get_network_name()
 
         # Reads current neural network data
-        data = self.networks[network]['Data']
+        data = self._get_network_data()
+
+        # Reads current neural network keypoints
+        keypoints = self._get_network_keypoints()
 
         # Reads current frame if frames for current neural network exist
-        if len(self.networks[network]['Data']) > 0:
+        if len(data) > 0:
             frame = data[self.current_frame]
 
-        # Checks if keypoints for the current frame exist and number of keypoints is larger than selected for display keypoint index
-        if self.networks[network]['Keypoints'][self.current_frame].shape[0] > 0 and len(self.networks[network]['Keypoints'][self.current_frame]) > self.selected_keypoint:
-            # Only one keypoint position (currently selected one)
-            keypoint_position = self._get_network_keypoints(
-            )[self.current_frame][self.selected_keypoint]
+            # Checks if keypoints for the current frame exist and number of keypoints is larger than selected for display keypoint index
+            if self._get_network_keypoints()[self.current_frame].shape[0] > 0 and len(self._get_network_keypoints()[self.current_frame]) > self.selected_keypoint:
+                # Only one keypoint position (currently selected one)
+                keypoint_position = self._get_network_keypoints(
+                )[self.current_frame][self.selected_keypoint]
 
-            # Draw circle around selected keypoint
-            processed_frame = cv2.circle(
-                copy.copy(frame), (int(keypoint_position[0]), int(keypoint_position[1])), 5, (255, 50, 50), 3)
+                # Draw circle around selected keypoint
+                processed_frame = cv2.circle(
+                    copy.copy(frame), (int(keypoint_position[0]), int(keypoint_position[1])), 5, (255, 50, 50), 3)
+            else:
+                keypoint_position = None
+
+                # If selected keypoint is not present on current frame it doesn't draw circle
+                processed_frame = frame
         else:
+            processed_frame = np.zeros((500, 500, 3)).astype(np.float32)
             keypoint_position = None
 
-            # If selected keypoint is not present on current frame it doesn't draw circle
-            processed_frame = frame
-
-        '''
-        Additional plots
-        '''
+        # Additional plots
         if self.selected_plot == 0 and keypoint_position is not None:
             self._process_vector(
                 frame, keypoint_position, fps)
@@ -491,12 +495,14 @@ class GUI(QtWidgets.QMainWindow):
     # Process 2D skeleton display
     def _process_2d(self, frame: np.array, keypoints: torch.tensor) -> None:
         self._set_2d_plot_params(frame.shape)
-        frame_y_shape = frame.shape[1]
+        frame_y_shape = frame.shape[0]
 
         if len(keypoints) != 0:
             x = keypoints[:, 0]
             y = keypoints[:, 1]
+            print(f'Y: {y}, FRAME SHAPE: {frame.shape}')
             y = torch.tensor([frame_y_shape]*len(y)) - y
+            print(f'NEW Y: {y}')
             self._2d_plot.set_offsets(np.c_[x, y])
         else:
             self._2d_plot.set_offsets(np.c_[0, 0])
@@ -504,8 +510,8 @@ class GUI(QtWidgets.QMainWindow):
     # Set params for displaying 2D plot
     def _set_2d_plot_params(self, frame_shape: tuple) -> None:
         # Set X and Y axis limits
-        self.sc.axes.set_xlim(0, frame_shape[0])
-        self.sc.axes.set_ylim(0, frame_shape[1])
+        self.sc.axes.set_xlim(0, frame_shape[1])
+        self.sc.axes.set_ylim(0, frame_shape[0])
 
         # Hide visual components of x and y axis
         self.sc.axes.set_axis_off()
