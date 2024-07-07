@@ -1,4 +1,4 @@
-from PyQt6 import QtWidgets, QtCore
+from PyQt6 import QtWidgets, QtCore, QtGui
 import sys
 import copy
 import time
@@ -21,6 +21,8 @@ matplotlib.use("Qt5Agg")
 user_name = os.getenv("USER")
 envpath = f'/home/{user_name}/.local/lib/python3.10/site-packages/cv2/qt/plugins/platforms'
 os.environ['QT_QPA_PLATFORM_PLUGIN_PATH'] = envpath
+
+TOTAL_NUMBER_OF_KEYPOINTS = 25
 
 
 class GUI(QtWidgets.QMainWindow):
@@ -143,7 +145,7 @@ class GUI(QtWidgets.QMainWindow):
         self.selected_plot_label = QtWidgets.QLabel("Selected plot: ")
         self.selected_plot_combobox = QtWidgets.QComboBox()
         self.selected_plot_combobox.addItem("Velocity")
-        self.selected_plot_combobox.addItem("3D Plot")
+        self.selected_plot_combobox.addItem("2D Plot")
         self.selected_plot_combobox.currentIndexChanged.connect(
             self._selected_plot_change)
 
@@ -151,11 +153,14 @@ class GUI(QtWidgets.QMainWindow):
         self.selected_keypoint_label = QtWidgets.QLabel("Selected keypoints: ")
         self.selected_keypoint_combobox = QtWidgets.QComboBox()
 
-        for i in range(25):
+        for i in range(TOTAL_NUMBER_OF_KEYPOINTS):
             self.selected_keypoint_combobox.addItem(str(i))
         self.selected_keypoint_combobox.currentIndexChanged.connect(
             self._selected_keypoint_change)
-
+        self.selected_keypoint_combobox.setStyleSheet("QComboBox"
+                                                      "{"
+                                                      "background-color: darkblue;"
+                                                      "}")
         self.selected_keypoint_layout = QtWidgets.QHBoxLayout()
         # Add widgets
         self.selected_keypoint_layout.addWidget(
@@ -408,6 +413,9 @@ class GUI(QtWidgets.QMainWindow):
         self.sc.fig.canvas.update()
         self.sc.fig.canvas.flush_events()
 
+        # Color green available keypoints
+        self._color_combobox_items()
+
         # Increment current frame value if possible
         if self.play_button_status and self.current_frame < len(self.networks[network]['Data'])-1:
             self.current_frame += 1
@@ -553,7 +561,7 @@ class GUI(QtWidgets.QMainWindow):
         data = self.networks[network]['Data']
         return data
 
-    def _get_network_keypoints(self) -> list:
+    def _get_network_keypoints(self) -> list[torch.Tensor]:
         network = self._get_network_name()
         keypoints = self.networks[network]['Keypoints']
         return keypoints
@@ -579,6 +587,34 @@ class GUI(QtWidgets.QMainWindow):
             # Set mean progress bar value
             self.progress_bar.setValue(
                 int(total_progress_bar_value/number_of_processed_nns))
+
+    # Function for coloring active keypoints
+    def _color_combobox_items(self) -> None:
+        # Get all keypoints for current NN
+        keypoints = self._get_network_keypoints()
+
+        # Avoid index out of range
+        if len(keypoints) == 0:
+            return
+
+        # Get keypoints for current frame
+        keypoints = keypoints[self.current_frame]
+
+        # Get combobox model
+        model = self.selected_keypoint_combobox.model()
+
+        # Tensor for checking if keypoints are zeros
+        zeros_tensor = torch.zeros((1, 3))
+
+        # For each element in combobox set its color
+        for i in range(TOTAL_NUMBER_OF_KEYPOINTS):
+            # Check if keypoints exist and are non zero
+            if keypoints.shape[0] == 0 or len(keypoints) <= i or torch.eq(keypoints[i], zeros_tensor).all():
+                model.setData(model.index(i, 0), QtGui.QColor(
+                    'gray'), QtCore.Qt.ItemDataRole.BackgroundRole)
+            else:
+                model.setData(model.index(i, 0), QtGui.QColor(
+                    'green'), QtCore.Qt.ItemDataRole.BackgroundRole)
 
 
 def main() -> None:
