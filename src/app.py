@@ -15,6 +15,9 @@ from plt_canvas import PltCanvas
 from video_worker import VideoWorker
 from settings import Settings
 import utils
+from utils import SKELETON_COLORS
+from skeletons import SKELTONS
+import matplotlib.pyplot as plt
 
 
 matplotlib.use("Qt5Agg")
@@ -157,10 +160,6 @@ class GUI(QtWidgets.QMainWindow):
             self.selected_keypoint_combobox.addItem(str(i))
         self.selected_keypoint_combobox.currentIndexChanged.connect(
             self._selected_keypoint_change)
-        self.selected_keypoint_combobox.setStyleSheet("QComboBox"
-                                                      "{"
-                                                      "background-color: darkblue;"
-                                                      "}")
         self.selected_keypoint_layout = QtWidgets.QHBoxLayout()
         # Add widgets
         self.selected_keypoint_layout.addWidget(
@@ -391,10 +390,11 @@ class GUI(QtWidgets.QMainWindow):
             keypoint_position = None
 
         # Additional plots
-        if self.selected_plot == 0 and keypoint_position is not None:
+        if self.selected_plot == 0 and keypoint_position is not None:  # Velocity vector
             self._process_vector(
                 frame, keypoint_position, fps)
             self.sc.axes.draw_artist(self.vector)  # Draw new vector
+        # 2D Plot
         elif self.selected_plot == 1:
             self.sc.axes.draw_artist(self.sc.axes.patch)
 
@@ -515,14 +515,13 @@ class GUI(QtWidgets.QMainWindow):
         if len(keypoints) != 0:
             x = keypoints[:, 0]
             y = keypoints[:, 1]
-            print(f'Y: {y}, FRAME SHAPE: {frame.shape}')
             y = torch.tensor([frame_y_shape]*len(y)) - y
-            print(f'NEW Y: {y}')
             self._2d_plot.set_offsets(np.c_[x, y])
         else:
             self._2d_plot.set_offsets(np.c_[0, 0])
 
     # Set params for displaying 2D plot
+
     def _set_2d_plot_params(self, frame_shape: tuple) -> None:
         # Set X and Y axis limits
         self.sc.axes.set_xlim(0, frame_shape[1])
@@ -614,7 +613,7 @@ class GUI(QtWidgets.QMainWindow):
                     'gray'), QtCore.Qt.ItemDataRole.BackgroundRole)
             else:
                 model.setData(model.index(i, 0), QtGui.QColor(
-                    'green'), QtCore.Qt.ItemDataRole.BackgroundRole)
+                    '#08c71b'), QtCore.Qt.ItemDataRole.BackgroundRole)
 
 
 def main() -> None:
