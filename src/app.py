@@ -194,10 +194,10 @@ class GUI(QtWidgets.QMainWindow):
     # Initialize variables not related to GUI
     def initialize_variables(self) -> None:
         # Dictionary for data related to each neural network
-        self.networks = {'YOLO': {"Enabled": 0, "Interface": yolo_interface.process_yolo, "Data": [], "Processed": False, "Keypoints": []},
-                         'MediaPipe': {"Enabled": 0, "Interface": mediapipe_interface.process_mediapipe, "Data": [], "Processed": False, "Keypoints": []},
-                         'OpenPifPaf': {"Enabled": 0, "Interface": None, "Data": [], "Processed": False, "Keypoints": []},
-                         'OpenPose': {"Enabled": 0, "Interface": None, "Data": [], "Processed": False, "Keypoints": []}}
+        self.networks = {'YOLO': {"Enabled": 0, "Interface": yolo_interface.process_yolo, "Data": [], "Processed": False, "Keypoints": [], 'Progress_bar_value': 0},
+                         'MediaPipe': {"Enabled": 0, "Interface": mediapipe_interface.process_mediapipe, "Data": [], "Processed": False, "Keypoints": [], 'Progress_bar_value': 0},
+                         'OpenPifPaf': {"Enabled": 0, "Interface": None, "Data": [], "Processed": False, "Keypoints": [], 'Progress_bar_value': 0},
+                         'OpenPose': {"Enabled": 0, "Interface": None, "Data": [], "Processed": False, "Keypoints": [], 'Progress_bar_value': 0}}
         self.network_index = 0  # Currently selected network to be displayed
         self.file_path = ""  # File path to be processed
         self.processing = False  # Is the image currently being processed by the NNs
@@ -280,6 +280,7 @@ class GUI(QtWidgets.QMainWindow):
                             runtype, self.file_path)
             self.threadpool.start(worker)
             worker.signals.result.connect(self.save_output)
+            worker.signals.progress_bar.connect(self._update_progress_bar)
 
     # Function activated when workers responsible for passing videos through neural networks finish their work.
     # This function saves outputs in appropriate places in self.networks dictionary
@@ -550,6 +551,28 @@ class GUI(QtWidgets.QMainWindow):
         network = self._get_network_name()
         keypoints = self.networks[network]['Keypoints']
         return keypoints
+
+    def _update_progress_bar(self, args: tuple) -> None:
+        nn_name = args[0]  # Get name of the network
+        value = args[1]  # Get value for the progress bar
+        # Set progress bar value for one network
+        self.networks[nn_name]['Progress_bar_value'] = value
+
+        # Initialize variables for calculating final progress bar value
+        number_of_processed_nns = 0
+        total_progress_bar_value = 0
+
+        # Get progress bar values for all processed networks to calculate the mean
+        for network_name, values in self.networks.items():
+            if values['Progress_bar_value'] > 0:
+                number_of_processed_nns += 1
+                total_progress_bar_value += values['Progress_bar_value']
+
+        # Avoid division by 0
+        if number_of_processed_nns > 0:
+            # Set mean progress bar value
+            self.progress_bar.setValue(
+                int(total_progress_bar_value/number_of_processed_nns))
 
 
 def main() -> None:
