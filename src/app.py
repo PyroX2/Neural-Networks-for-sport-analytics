@@ -217,6 +217,12 @@ class GUI(QtWidgets.QMainWindow):
     def network_selection_change(self, i: int) -> None:
         self.network_index = i  # This index is selecting the network by the self.networks.keys()
 
+        if self.current_frame == 0:
+            # Gets data for currently selected neural network
+            data = self._get_network_data()
+            self.number_of_frames = len(data)
+            self.show_output(data)
+
     # Function to check all neural networks as active to be processed
     def check_all_networks(self) -> None:
         for checkbox in self.checkboxes:
