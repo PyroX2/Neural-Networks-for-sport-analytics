@@ -23,7 +23,7 @@ SKELETON = ((0, 1),
             (12, 11))
 
 
-def process_yolo(runtype: str, path: str) -> tuple[list, list[torch.tensor], str]:
+def process_yolo(runtype: str, path: str, progress_bar_function) -> tuple[list, list[torch.tensor], str]:
     # Load the model
     model = YOLO('models/yolo/yolov8n-pose.pt')
 
@@ -34,6 +34,9 @@ def process_yolo(runtype: str, path: str) -> tuple[list, list[torch.tensor], str
 
         # Capture video with cv2
         video = cv2.VideoCapture(path)
+
+        # Get total number of frames
+        length = int(video.get(cv2.CAP_PROP_FRAME_COUNT))
 
         # Lists for storing output images and landmarks
         output_images = []
@@ -59,6 +62,8 @@ def process_yolo(runtype: str, path: str) -> tuple[list, list[torch.tensor], str
             # Use hstack to add zeros for Z dim
             landmarks.append(torch.hstack(
                 (keypoints.xy[0], torch.tensor([[0]]*len(keypoints.xy[0])))))
+
+            progress_bar_function('YOLO', int(i/length*100))
         return output_images, landmarks, 'YOLO'
 
     elif runtype == 'Image':
