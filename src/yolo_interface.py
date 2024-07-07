@@ -23,7 +23,7 @@ SKELETON = ((0, 1),
             (12, 11))
 
 
-def process_yolo(runtype: str, path: str, progress_bar_function) -> tuple[list, list[torch.tensor], str]:
+def process_yolo(runtype: str, path: str, progress_bar_function) -> tuple[list, list[torch.Tensor], str]:
     # Load the model
     model = YOLO('models/yolo/yolov8n-pose.pt')
 
