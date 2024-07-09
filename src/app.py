@@ -149,6 +149,7 @@ class GUI(QtWidgets.QMainWindow):
         self.selected_plot_combobox = QtWidgets.QComboBox()
         self.selected_plot_combobox.addItem("Velocity")
         self.selected_plot_combobox.addItem("2D Plot")
+        self.selected_plot_combobox.addItem("3D Plot")
         self.selected_plot_combobox.currentIndexChanged.connect(
             self._selected_plot_change)
 
@@ -181,9 +182,6 @@ class GUI(QtWidgets.QMainWindow):
         self.vector = self.sc.axes.quiver(
             0, 0, 0, 0, angles='xy', scale_units='xy', scale=1)
         self.right_vbox.addWidget(self.sc)
-
-        # 2D PLOT
-        self._2d_plot = self.sc.axes.scatter([0], [0])
 
         # MAIN PAGE LAYOUT
         self.central_widget.setLayout(self.main_page_layout)
@@ -389,6 +387,11 @@ class GUI(QtWidgets.QMainWindow):
             processed_frame = np.zeros((500, 500, 3)).astype(np.float32)
             keypoint_position = None
 
+        # Gets only keypoints for current frame
+        if len(keypoints) < self.current_frame:
+            return
+        keypoints = keypoints[self.current_frame]
+
         # Additional plots
         if self.selected_plot == 0 and keypoint_position is not None:  # Velocity vector
             self._process_vector(
@@ -398,17 +401,14 @@ class GUI(QtWidgets.QMainWindow):
         elif self.selected_plot == 1:
             self.sc.axes.draw_artist(self.sc.axes.patch)
 
-            # Gets all keypoints for current neural network
-            keypoints = self._get_network_keypoints()
-
-            # Gets only keypoints for current frame
-            keypoints = keypoints[self.current_frame]
-
             # Process 2D frame
             self._process_2d(frame, keypoints)
+        # 3D Plot
+        elif self.selected_plot == 2:
+            self.sc.axes.cla()
 
-            # Draw 2D skeleton
-            self.sc.axes.draw_artist(self._2d_plot)
+            # Process 3D frame
+            self._process_3d(frame, keypoints)
         # Update plot
         self.sc.fig.canvas.update()
         self.sc.fig.canvas.flush_events()
@@ -470,6 +470,8 @@ class GUI(QtWidgets.QMainWindow):
 
     # Processes new vector and plot to display it
     def _process_vector(self, frame: np.array, keypoint_position: torch.tensor, fps: float) -> None:
+        if self.sc.axes.name == "3d":
+            self.sc.axes = self.sc.fig.add_subplot(111)
         try:
             prev_keypoint_position = self._get_network_keypoints()[self.current_frame -
                                                                    1][self.selected_keypoint]
@@ -509,26 +511,28 @@ class GUI(QtWidgets.QMainWindow):
 
     # Process 2D skeleton display
     def _process_2d(self, frame: np.array, keypoints: torch.tensor) -> None:
-        self._set_2d_plot_params(frame.shape)
-        frame_y_shape = frame.shape[0]
+        if self.sc.axes.name == "3d":
+            self.sc.axes = self.sc.fig.add_subplot(111)
 
-        if len(keypoints) != 0:
-            x = keypoints[:, 0]
-            y = keypoints[:, 1]
-            y = torch.tensor([frame_y_shape]*len(y)) - y
-            self._2d_plot.set_offsets(np.c_[x, y])
-        else:
-            self._2d_plot.set_offsets(np.c_[0, 0])
+        self.plt_draw_2d(
+            keypoints, SKELTONS[self._get_network_name()], frame.shape)
 
     # Set params for displaying 2D plot
-
     def _set_2d_plot_params(self, frame_shape: tuple) -> None:
         # Set X and Y axis limits
         self.sc.axes.set_xlim(0, frame_shape[1])
         self.sc.axes.set_ylim(0, frame_shape[0])
 
         # Hide visual components of x and y axis
-        self.sc.axes.set_axis_off()
+        # self.sc.axes.set_axis_off()
+
+    # Process 2D skeleton display
+    def _process_3d(self, frame: np.array, keypoints: torch.tensor) -> None:
+        if self.sc.axes.name != "3d":
+            self.sc.axes = self.sc.fig.add_subplot(111, projection='3d')
+
+        self.plt_draw_3d(
+            keypoints, SKELTONS[self._get_network_name()], frame.shape)
 
     # Sets current frame from slider value
     def _set_current_frame(self, i: int) -> None:
@@ -614,6 +618,48 @@ class GUI(QtWidgets.QMainWindow):
             else:
                 model.setData(model.index(i, 0), QtGui.QColor(
                     '#08c71b'), QtCore.Qt.ItemDataRole.BackgroundRole)
+
+    def plt_draw_2d(self, landmarks: list, skeleton: list, frame_shape: tuple):
+        if len(landmarks) == 0:
+            return
+
+        self.sc.axes.cla()
+        # Extract every point
+        for i, (first_keypoint, second_keypoint) in enumerate(skeleton):
+            if first_keypoint == [0, 0, 0] or second_keypoint == [0, 0, 0]:
+                continue
+            start_point = landmarks[first_keypoint]
+            end_point = landmarks[second_keypoint]
+
+            self.sc.axes.plot([start_point[0], end_point[0]], [
+                frame_shape[0] - start_point[1], frame_shape[0] - end_point[1]])
+            self.sc.axes.set_xlim(0, frame_shape[1])
+            self.sc.axes.set_ylim(0, frame_shape[0])
+            # self.sc.axes.set_axis_off()
+            # self.sc.axes.set_facecolor("#FFFFFF")
+
+        self.sc.fig.canvas.draw()
+        self.sc.fig.canvas.flush_events()
+
+    def plt_draw_3d(self, landmarks: list, skeleton: list, frame_shape: tuple):
+        if len(landmarks) == 0:
+            return
+
+        # Extract every point
+        for i, (first_keypoint, second_keypoint) in enumerate(skeleton):
+            if first_keypoint == [0, 0, 0] or second_keypoint == [0, 0, 0]:
+                continue
+            start_point = landmarks[first_keypoint]
+            end_point = landmarks[second_keypoint]
+
+            self.sc.axes.plot3D([start_point[0], end_point[0]],
+                                [start_point[2], end_point[2]],
+                                [frame_shape[0] - start_point[1], frame_shape[0] - end_point[1]])
+            self.sc.axes.set_xlim(0, frame_shape[1])
+            self.sc.axes.set_ylim(0, frame_shape[0])
+
+        self.sc.fig.canvas.draw()
+        self.sc.fig.canvas.flush_events()
 
 
 def main() -> None:
