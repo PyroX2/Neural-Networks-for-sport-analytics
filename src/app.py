@@ -150,6 +150,7 @@ class GUI(QtWidgets.QMainWindow):
         self.selected_plot_combobox.addItem("Velocity")
         self.selected_plot_combobox.addItem("2D Plot")
         self.selected_plot_combobox.addItem("3D Plot")
+        self.selected_plot_combobox.addItem("Keypoint Plot")
         self.selected_plot_combobox.currentIndexChanged.connect(
             self._selected_plot_change)
 
@@ -183,6 +184,9 @@ class GUI(QtWidgets.QMainWindow):
         self.vector = self.sc.axes.quiver(
             0, 0, 0, 0, angles='xy', scale_units='xy', scale=1)
         self.right_vbox.addWidget(self.sc)
+
+        # KEPOINTS PLOT
+        self.keypoints_plot = self.sc.axes.scatter([0], [0])
 
         # MAIN PAGE LAYOUT
         self.central_widget.setLayout(self.main_page_layout)
@@ -363,7 +367,7 @@ class GUI(QtWidgets.QMainWindow):
         # Reads current neural network data
         data = self._get_network_data()
 
-        # Reads current neural network keypoints
+        # Reads current neural network keypoints (for all frames)
         keypoints = self._get_network_keypoints()
 
         # Reads current frame if frames for current neural network exist
@@ -410,6 +414,10 @@ class GUI(QtWidgets.QMainWindow):
 
             # Process 3D frame
             self._process_3d(frame, keypoints)
+
+        elif self.selected_plot == 3:
+            self._process_keypoints_plot(frame, self._get_network_keypoints())
+            self.sc.axes.draw_artist(self.keypoints_plot)  # Scatter points
         # Update plot
         self.sc.fig.canvas.update()
         self.sc.fig.canvas.flush_events()
@@ -524,9 +532,6 @@ class GUI(QtWidgets.QMainWindow):
         self.sc.axes.set_xlim(0, frame_shape[1])
         self.sc.axes.set_ylim(0, frame_shape[0])
 
-        # Hide visual components of x and y axis
-        # self.sc.axes.set_axis_off()
-
     # Process 2D skeleton display
     def _process_3d(self, frame: np.ndarray, keypoints: torch.Tensor) -> None:
         if self.sc.axes.name != "3d":
@@ -534,6 +539,42 @@ class GUI(QtWidgets.QMainWindow):
 
         self.plt_draw_3d(
             keypoints, SKELTONS[self._get_network_name()], frame.shape)
+
+    def _process_keypoints_plot(self, frame: np.ndarray, keypoints: list[torch.Tensor]) -> None:
+        # Return if selected keypoint index is too big
+        if self.selected_keypoint >= len(keypoints):
+            return
+
+        # Reset plot
+        self.sc.axes.draw_artist(self.sc.axes.patch)
+
+        frame_shape = frame.shape
+
+        # Set limits for the plot
+        self._set_2d_plot_params(frame_shape)
+
+        # Create lists for keypoint positions in each frame
+        x_keypoint_positions = []
+        y_keypoint_positions = []
+        for i, frame_keypoints in enumerate(keypoints):
+            if len(frame_keypoints) == 0:
+                x_keypoint_positions.append(-1)
+                y_keypoint_positions.append(-1)
+                continue
+            keypoint = frame_keypoints[self.selected_keypoint]
+            x_keypoint_positions.append(keypoint[0])
+            y_keypoint_positions.append(keypoint[1])
+
+        # c = np.zeros((len(x_keypoint_positions), 3))
+        # c[self.current_frame] = np.array([1, 0, 0])
+
+        self.sc.axes.set_xlim(min([i for i in x_keypoint_positions if i > 0]), max(x_keypoint_positions))
+        self.sc.axes.set_ylim(min([i for i in y_keypoint_positions if i > 0]), max(y_keypoint_positions))
+
+        # Update values for scatter
+        self.keypoints_plot.set_offsets(np.c_[x_keypoint_positions, y_keypoint_positions])
+        self.keypoints_plot._facecolors = [[0, 0, 1, 1]]*len(x_keypoint_positions)
+        self.keypoints_plot._facecolors[self.current_frame] = [1, 0, 0, 1]
 
     # Sets current frame from slider value
     def _set_current_frame(self, i: int) -> None:
