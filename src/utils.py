@@ -29,7 +29,7 @@ SKELETON_COLORS = (
 )
 
 
-def draw_keypoints(landmarks: torch.Tensor, image: np.array, skeleton: tuple) -> np.array:
+def draw_keypoints(landmarks: torch.Tensor, image: np.ndarray, skeleton: tuple) -> np.ndarray:
     # If landmarks list is empty return original image
     if len(landmarks) == 0:
         return image
@@ -50,7 +50,7 @@ def draw_keypoints(landmarks: torch.Tensor, image: np.array, skeleton: tuple) ->
     return image
 
 
-def scale_frame(frame: np.array, x_max: int, y_max: int) -> np.array:
+def scale_frame(frame: np.ndarray, x_max: int, y_max: int) -> np.ndarray:
     # Read X and Y axis sizes
     x_size, y_size = frame.shape[0], frame.shape[1]
 

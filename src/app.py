@@ -162,6 +162,7 @@ class GUI(QtWidgets.QMainWindow):
         self.selected_keypoint_combobox.currentIndexChanged.connect(
             self._selected_keypoint_change)
         self.selected_keypoint_layout = QtWidgets.QHBoxLayout()
+
         # Add widgets
         self.selected_keypoint_layout.addWidget(
             self.selected_plot_label, alignment=QtCore.Qt.AlignmentFlag.AlignLeft)
@@ -352,7 +353,7 @@ class GUI(QtWidgets.QMainWindow):
             cv2.cvtColor(frame, cv2.COLOR_RGB2BGR))
 
     # Function responsible for processing video frames by the worker
-    def process_frame(self) -> tuple[np.array, bool]:
+    def process_frame(self) -> tuple[np.ndarray, bool]:
         video = cv2.VideoCapture(self.file_path)  # Reads video
         fps = video.get(cv2.CAP_PROP_FPS)  # Reads video's fps
 
@@ -426,7 +427,7 @@ class GUI(QtWidgets.QMainWindow):
         return processed_frame, False
 
     # Function that receives processed frame from worker and draws it
-    def _show_video_output(self, frame: np.array) -> None:
+    def _show_video_output(self, frame: np.ndarray) -> None:
         # Sets max value for slider
         self.slider.setMaximum(self.number_of_frames-1)
 
@@ -469,7 +470,7 @@ class GUI(QtWidgets.QMainWindow):
         self.selected_plot = int(i)
 
     # Processes new vector and plot to display it
-    def _process_vector(self, frame: np.array, keypoint_position: torch.tensor, fps: float) -> None:
+    def _process_vector(self, frame: np.ndarray, keypoint_position: torch.Tensor, fps: float) -> None:
         if self.sc.axes.name == "3d":
             self.sc.axes = self.sc.fig.add_subplot(111)
         try:
@@ -510,7 +511,7 @@ class GUI(QtWidgets.QMainWindow):
         self.sc.axes.set_axis_on()
 
     # Process 2D skeleton display
-    def _process_2d(self, frame: np.array, keypoints: torch.tensor) -> None:
+    def _process_2d(self, frame: np.ndarray, keypoints: torch.Tensor) -> None:
         if self.sc.axes.name == "3d":
             self.sc.axes = self.sc.fig.add_subplot(111)
 
@@ -527,7 +528,7 @@ class GUI(QtWidgets.QMainWindow):
         # self.sc.axes.set_axis_off()
 
     # Process 2D skeleton display
-    def _process_3d(self, frame: np.array, keypoints: torch.tensor) -> None:
+    def _process_3d(self, frame: np.ndarray, keypoints: torch.Tensor) -> None:
         if self.sc.axes.name != "3d":
             self.sc.axes = self.sc.fig.add_subplot(111, projection='3d')
 
@@ -559,7 +560,7 @@ class GUI(QtWidgets.QMainWindow):
         return network
 
     # Returns data for currently selected network
-    def _get_network_data(self) -> list:
+    def _get_network_data(self) -> list[np.ndarray]:
         network = self._get_network_name()
         data = self.networks[network]['Data']
         return data
@@ -619,7 +620,7 @@ class GUI(QtWidgets.QMainWindow):
                 model.setData(model.index(i, 0), QtGui.QColor(
                     '#08c71b'), QtCore.Qt.ItemDataRole.BackgroundRole)
 
-    def plt_draw_2d(self, landmarks: list, skeleton: list, frame_shape: tuple):
+    def plt_draw_2d(self, landmarks: list, skeleton: list, frame_shape: tuple) -> None:
         if len(landmarks) == 0:
             return
 
@@ -641,7 +642,7 @@ class GUI(QtWidgets.QMainWindow):
         self.sc.fig.canvas.draw()
         self.sc.fig.canvas.flush_events()
 
-    def plt_draw_3d(self, landmarks: list, skeleton: list, frame_shape: tuple):
+    def plt_draw_3d(self, landmarks: list, skeleton: list, frame_shape: tuple) -> None:
         if len(landmarks) == 0:
             return
 

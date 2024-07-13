@@ -15,7 +15,7 @@ class WorkerSignals(QObject):
 
 
 class VideoWorker(QRunnable):
-    def __init__(self, fn, *args, **kwargs):
+    def __init__(self, fn, *args, **kwargs) -> None:
         super(VideoWorker, self).__init__()
         # Store constructor arguments (re-used for processing)
         self.fn = fn  # Function to be called
@@ -24,7 +24,7 @@ class VideoWorker(QRunnable):
         self.signals = WorkerSignals()  # Signals for sending results
 
     @pyqtSlot()
-    def run(self):
+    def run(self) -> None:
         while True:
             # Get processed frame
             frame, finished = self.fn(

@@ -8,8 +8,8 @@ import cv2
 import torch
 
 
-def draw_landmarks_on_image(rgb_image: np.array,
-                            detection_result: mp.tasks.vision.PoseLandmarkerResult) -> tuple[np.array, torch.tensor]:
+def draw_landmarks_on_image(rgb_image: np.ndarray,
+                            detection_result: mp.tasks.vision.PoseLandmarkerResult) -> tuple[np.ndarray, torch.Tensor]:
     # Extract list with landmarks and create a copy of an image
     pose_landmarks_list = detection_result.pose_landmarks
     annotated_image = np.copy(rgb_image)
