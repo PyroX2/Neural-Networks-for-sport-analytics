@@ -565,8 +565,6 @@ class GUI(QtWidgets.QMainWindow):
             x_keypoint_positions.append(keypoint[0])
             y_keypoint_positions.append(keypoint[1])
 
-        # c = np.zeros((len(x_keypoint_positions), 3))
-        # c[self.current_frame] = np.array([1, 0, 0])
 
         self.sc.axes.set_xlim(min([i for i in x_keypoint_positions if i > 0]), max(x_keypoint_positions))
         self.sc.axes.set_ylim(min([i for i in y_keypoint_positions if i > 0]), max(y_keypoint_positions))
@@ -677,8 +675,6 @@ class GUI(QtWidgets.QMainWindow):
                 frame_shape[0] - start_point[1], frame_shape[0] - end_point[1]])
             self.sc.axes.set_xlim(0, frame_shape[1])
             self.sc.axes.set_ylim(0, frame_shape[0])
-            # self.sc.axes.set_axis_off()
-            # self.sc.axes.set_facecolor("#FFFFFF")
 
         self.sc.fig.canvas.draw()
         self.sc.fig.canvas.flush_events()
