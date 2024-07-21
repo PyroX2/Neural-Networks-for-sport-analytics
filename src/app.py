@@ -273,6 +273,8 @@ class GUI(QtWidgets.QMainWindow):
         else:
             return '''TODO: ERROR SHOULD BE DISPLAYED'''
 
+        self.start_time = time.time()
+
         for network in self.networks.keys():
             # If network is not enabled continue to next one
             if self.networks[network]['Enabled'] == 0:
@@ -298,6 +300,8 @@ class GUI(QtWidgets.QMainWindow):
     # Function activated when workers responsible for passing videos through neural networks finish their work.
     # This function saves outputs in appropriate places in self.networks dictionary
     def save_output(self, output: tuple) -> None:
+        print(f"{output[2]} finished in: {time.time() - self.start_time}")
+
         # Saves processed frames with skeletons drawn
         self.networks[output[2]]['Data'] = output[0]  # List
 
