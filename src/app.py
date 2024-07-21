@@ -4,19 +4,19 @@ import copy
 import time
 import matplotlib
 import os
-import mediapipe_interface
-import yolo_interface
+from src import mediapipe_interface
+from src import yolo_interface
 import cv2
-from worker import Worker
-from image_window import ImageWindow
+from src.worker import Worker
+from src.image_window import ImageWindow
 import numpy as np
 import torch
-from plt_canvas import PltCanvas
-from video_worker import VideoWorker
-from settings import Settings
-import utils
-from utils import SKELETON_COLORS
-from skeletons import SKELTONS
+from src.plt_canvas import PltCanvas
+from src.video_worker import VideoWorker
+from src.settings import Settings
+import src.utils as utils
+from src.utils import SKELETON_COLORS
+from src.skeletons import SKELTONS
 import matplotlib.pyplot as plt
 
 

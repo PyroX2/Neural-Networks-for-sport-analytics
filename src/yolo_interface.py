@@ -1,7 +1,7 @@
 from ultralytics import YOLO
 import cv2
 import torch
-import utils
+import src.utils as utils
 
 # Define skeleton for drawing the whole pose
 SKELETON = ((0, 1),
