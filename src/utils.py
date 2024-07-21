@@ -73,3 +73,18 @@ def scale_frame(frame: np.ndarray, x_max: int, y_max: int) -> np.ndarray:
 def keypoints_eq_0(start_point: torch.Tensor, end_point: torch.Tensor) -> bool:
     zeros_tensor = torch.tensor([0, 0, 0])
     return torch.eq(start_point, zeros_tensor).all() == True or torch.eq(end_point, zeros_tensor).all() == True
+
+
+def calculate_least_squares(y: list[float], x: list[float], n: int) -> list:
+    x = np.array(x)
+
+    H = np.empty((len(y), n + 1))
+
+    for i in range(n + 1):
+        H[:, i] = x ** i
+
+    y = np.array(y)[np.newaxis]
+    H_inversed = np.linalg.inv(H.transpose().dot(H))
+    params = H_inversed.dot(H.transpose()).dot(y.T)
+
+    return params
