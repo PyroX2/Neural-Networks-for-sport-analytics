@@ -53,7 +53,7 @@ def process_mediapipe(runtype: str, path: str, progress_bar_function) -> tuple[l
 
     # Set base model
     base_options = python.BaseOptions(
-        model_asset_path='./models/mediapipe/pose_landmarker.task')
+        model_asset_path='models/mediapipe/pose_landmarker.task')
 
     # Set options for processing images and videos
     options = vision.PoseLandmarkerOptions(
