@@ -68,3 +68,7 @@ def scale_frame(frame: np.ndarray, x_max: int, y_max: int) -> np.ndarray:
         int(y_size), int(x_size)), interpolation=cv2.INTER_CUBIC)
     # resized_frame = resize(frame, (x_size, y_size))
     return resized_frame
+
+def keypoints_eq_0(start_point: torch.Tensor, end_point: torch.Tensor) -> bool:
+    zeros_tensor = torch.tensor([0, 0, 0])
+    return torch.eq(start_point, zeros_tensor).all() == True or torch.eq(end_point, zeros_tensor).all() == True

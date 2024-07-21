@@ -669,14 +669,11 @@ class GUI(QtWidgets.QMainWindow):
 
         self.sc.axes.cla()
 
-        # Tensor for comparison
-        zeros_tensor = torch.tensor([0, 0, 0])
-
         # Extract every point
         for i, (first_keypoint, second_keypoint) in enumerate(skeleton):
             start_point = landmarks[first_keypoint]
             end_point = landmarks[second_keypoint]
-            if torch.eq(start_point, zeros_tensor).all() == True or torch.eq(end_point, zeros_tensor).all() == True:
+            if utils.keypoints_eq_0(start_point, end_point):
                 continue
 
             self.sc.axes.plot([start_point[0], end_point[0]], [
@@ -693,10 +690,10 @@ class GUI(QtWidgets.QMainWindow):
 
         # Extract every point
         for i, (first_keypoint, second_keypoint) in enumerate(skeleton):
-            if first_keypoint == [0, 0, 0] or second_keypoint == [0, 0, 0]:
-                continue
             start_point = landmarks[first_keypoint]
             end_point = landmarks[second_keypoint]
+            if utils.keypoints_eq_0(start_point, end_point):
+                continue
 
             self.sc.axes.plot3D([start_point[0], end_point[0]],
                                 [start_point[2], end_point[2]],
