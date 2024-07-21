@@ -55,12 +55,12 @@ def scale_frame(frame: np.ndarray, x_max: int, y_max: int) -> np.ndarray:
     x_size, y_size = frame.shape[0], frame.shape[1]
 
     if x_size > x_max:
-        y_size = y_size*(x_max/x_size)  # y_size times scaling factor
+        y_size = y_size * (x_max / x_size)  # y_size times scaling factor
         x_size = x_max
 
     # This is not elif because y_size might be still to big after x axis scaling
     if y_size > y_max:
-        x_size = x_size*(y_max/y_size)  # x_size times scaling factor
+        x_size = x_size * (y_max / y_size)  # x_size times scaling factor
         y_size = y_max
 
     # Resize frame
@@ -68,6 +68,7 @@ def scale_frame(frame: np.ndarray, x_max: int, y_max: int) -> np.ndarray:
         int(y_size), int(x_size)), interpolation=cv2.INTER_CUBIC)
     # resized_frame = resize(frame, (x_size, y_size))
     return resized_frame
+
 
 def keypoints_eq_0(start_point: torch.Tensor, end_point: torch.Tensor) -> bool:
     zeros_tensor = torch.tensor([0, 0, 0])
