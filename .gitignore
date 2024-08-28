@@ -4,3 +4,5 @@ models/*
 test/
 __pycache__/
 .venv/
+datasets/
+.idea
