@@ -456,7 +456,8 @@ class GUI(QtWidgets.QMainWindow):
 
     # Changes vector values
     def set_vector(self, new_value: list) -> None:
-        self.vector.set_UVC(new_value[0], new_value[1])
+        self.vector = self.sc.axes.quiver(
+            0, 0, new_value[0], -new_value[1], angles='xy', scale_units='xy', scale=1)
 
     # Changes play button status and text displayed on it
     def change_play_button(self) -> None:
@@ -491,14 +492,14 @@ class GUI(QtWidgets.QMainWindow):
         except:
             prev_keypoint_position = torch.zeros((3, 1))
 
-        # Reset plot
-        self.sc.axes.draw_artist(self.sc.axes.patch)
-
         # Sets plot params for displaying vector
         self._set_vector_plot_params()
 
         # If keypoint position exists calculate new vector
         if keypoint_position is not None:
+            # Reset plot
+            self.sc.axes.draw_artist(self.sc.axes.patch)
+
             # Calculate new vector
             new_vector_value = self.calculate_new_vector(
                 keypoint_position, prev_keypoint_position, fps)
@@ -569,13 +570,16 @@ class GUI(QtWidgets.QMainWindow):
             x_keypoint_positions.append(keypoint[0])
             y_keypoint_positions.append(keypoint[1])
 
-
-        self.sc.axes.set_xlim(min([i for i in x_keypoint_positions if i > 0]), max(x_keypoint_positions))
-        self.sc.axes.set_ylim(min([i for i in y_keypoint_positions if i > 0]), max(y_keypoint_positions))
+        self.sc.axes.set_xlim(
+            min([i for i in x_keypoint_positions if i > 0]), max(x_keypoint_positions))
+        self.sc.axes.set_ylim(
+            min([i for i in y_keypoint_positions if i > 0]), max(y_keypoint_positions))
 
         # Update values for scatter
-        self.keypoints_plot.set_offsets(np.c_[x_keypoint_positions, y_keypoint_positions])
-        self.keypoints_plot._facecolors = [[0, 0, 1, 1]]*len(x_keypoint_positions)
+        self.keypoints_plot.set_offsets(
+            np.c_[x_keypoint_positions, y_keypoint_positions])
+        self.keypoints_plot._facecolors = [
+            [0, 0, 1, 1]]*len(x_keypoint_positions)
         self.keypoints_plot._facecolors[self.current_frame] = [1, 0, 0, 1]
 
     # Sets current frame from slider value
