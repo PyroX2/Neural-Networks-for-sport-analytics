@@ -88,3 +88,9 @@ def calculate_least_squares(y: list[float], x: list[float], n: int) -> list:
     params = H_inversed.dot(H.transpose()).dot(y.T)
 
     return params
+
+
+def calculate_new_vector(current_value: torch.Tensor, prev_keypoint_position: torch.Tensor, fps: float) -> list[float, float]:
+    new_vector_x = (current_value[0] - prev_keypoint_position[0]) * fps
+    new_vector_y = (current_value[1] - prev_keypoint_position[1]) * fps
+    return [new_vector_x, new_vector_y]

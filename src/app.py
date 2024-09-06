@@ -18,6 +18,7 @@ import src.utils as utils
 from src.utils import SKELETON_COLORS
 from src.skeletons import SKELTONS
 import matplotlib.pyplot as plt
+import random
 
 
 matplotlib.use("Qt5Agg")
@@ -144,6 +145,10 @@ class GUI(QtWidgets.QMainWindow):
         self.progress_bar.setGeometry(30, 40, 200, 25)
         self.right_vbox.addWidget(self.progress_bar)
 
+        # KEYPOINT SELECTION
+        self.selected_keypoint_label = QtWidgets.QLabel("Selected keypoints: ")
+        self.selected_keypoint_combobox = QtWidgets.QComboBox()
+
         # PLOT SELECTION
         self.selected_plot_label = QtWidgets.QLabel("Selected plot: ")
         self.selected_plot_combobox = QtWidgets.QComboBox()
@@ -153,10 +158,6 @@ class GUI(QtWidgets.QMainWindow):
         self.selected_plot_combobox.addItem("Keypoint Plot")
         self.selected_plot_combobox.currentIndexChanged.connect(
             self._selected_plot_change)
-
-        # KEYPOINT SELECTION
-        self.selected_keypoint_label = QtWidgets.QLabel("Selected keypoints: ")
-        self.selected_keypoint_combobox = QtWidgets.QComboBox()
 
         for i in range(TOTAL_NUMBER_OF_KEYPOINTS):
             self.selected_keypoint_combobox.addItem(str(i))
@@ -179,14 +180,14 @@ class GUI(QtWidgets.QMainWindow):
         self.right_vbox.setAlignment(
             self.selected_keypoint_layout, QtCore.Qt.AlignmentFlag.AlignRight)
 
-        # VECTOR
-        self.sc = PltCanvas(width=5, height=4, dpi=100)
-        self.vector = self.sc.axes.quiver(
-            0, 0, 0, 0, angles='xy', scale_units='xy', scale=1)
-        self.right_vbox.addWidget(self.sc)
+        # CREATE PLT PLOT
+        self.plt_canvas = PltCanvas()
+        self.plt_canvas._add_to_layout(self.right_vbox, self)
 
-        # KEPOINTS PLOT
-        self.keypoints_plot = self.sc.axes.scatter([0], [0])
+        # PLT TIMER
+        self._plt_timer = self.plt_canvas.dynamic_canvas.new_timer(50)
+        self._plt_timer.add_callback(self._update_canvas)
+        self._plt_timer.start()
 
         # MAIN PAGE LAYOUT
         self.central_widget.setLayout(self.main_page_layout)
@@ -401,31 +402,6 @@ class GUI(QtWidgets.QMainWindow):
             return
         keypoints = keypoints[self.current_frame]
 
-        # Additional plots
-        if self.selected_plot == 0 and keypoint_position is not None:  # Velocity vector
-            self._process_vector(
-                frame, keypoint_position, fps)
-            self.sc.axes.draw_artist(self.vector)  # Draw new vector
-        # 2D Plot
-        elif self.selected_plot == 1:
-            self.sc.axes.draw_artist(self.sc.axes.patch)
-
-            # Process 2D frame
-            self._process_2d(frame, keypoints)
-        # 3D Plot
-        elif self.selected_plot == 2:
-            self.sc.axes.cla()
-
-            # Process 3D frame
-            self._process_3d(frame, keypoints)
-
-        elif self.selected_plot == 3:
-            self._process_keypoints_plot(frame, self._get_network_keypoints())
-            self.sc.axes.draw_artist(self.keypoints_plot)  # Scatter points
-        # Update plot
-        self.sc.fig.canvas.update()
-        self.sc.fig.canvas.flush_events()
-
         # Color green available keypoints
         self._color_combobox_items()
 
@@ -454,11 +430,6 @@ class GUI(QtWidgets.QMainWindow):
         self.image_window.set_image_data(
             cv2.cvtColor(frame, cv2.COLOR_RGB2BGR))
 
-    # Changes vector values
-    def set_vector(self, new_value: list) -> None:
-        self.vector = self.sc.axes.quiver(
-            0, 0, new_value[0], -new_value[1], angles='xy', scale_units='xy', scale=1)
-
     # Changes play button status and text displayed on it
     def change_play_button(self) -> None:
         if self.play_button_status:
@@ -468,76 +439,62 @@ class GUI(QtWidgets.QMainWindow):
             self.play_button_status = True
             self.play_button.setText("STOP")
 
-    # Calculates the position derivative
-    def calculate_new_vector(self, current_value: torch.Tensor, prev_keypoint_position: torch.Tensor, fps: float) -> list[float, float]:
-        new_vector_x = (current_value[0] - prev_keypoint_position[0]) * fps
-        new_vector_y = (current_value[1] - prev_keypoint_position[1]) * fps
-        return [new_vector_x, new_vector_y]
+    def _update_canvas(self):
+        if self.selected_plot == 0:
+            self._process_vector()
+        # elif self.selected_plot == 1:
+        #     keypoints = self._get_network_keypoints()[self.current_frame]
+        #     data = self._get_network_data()
+        #     frame = data[self.current_frame]
+        #     self.plt_canvas.update_2d_plot(
+        #         keypoints, SKELTONS[self._get_network_name()], frame.shape)
+        else:
+            pass
 
-    # Changes selected keypoint index
     def _selected_keypoint_change(self, i: str) -> None:
         self.selected_keypoint = int(i)
 
     # Changes selected plot index
     def _selected_plot_change(self, i: str) -> None:
         self.selected_plot = int(i)
+        self.plt_canvas._change_plot(i)
 
     # Processes new vector and plot to display it
-    def _process_vector(self, frame: np.ndarray, keypoint_position: torch.Tensor, fps: float) -> None:
-        if self.sc.axes.name == "3d":
-            self.sc.axes = self.sc.fig.add_subplot(111)
-        try:
-            prev_keypoint_position = self._get_network_keypoints()[self.current_frame -
-                                                                   1][self.selected_keypoint]
-        except:
-            prev_keypoint_position = torch.zeros((3, 1))
+    def _process_vector(self) -> None:
+        # video = cv2.VideoCapture(self.file_path)  # Reads video
+        # fps = video.get(cv2.CAP_PROP_FPS)  # Reads video's fps
+        fps = 10
+        '''
+        TODO:
+            * change try exept to checking if variable exists
+        '''
+        keypoint_position = torch.zeros((3, 1))
+        prev_keypoint_position = torch.zeros((3, 1))
 
-        # Sets plot params for displaying vector
-        self._set_vector_plot_params()
+        keypoints = self._get_network_keypoints()
 
-        # If keypoint position exists calculate new vector
-        if keypoint_position is not None:
-            # Reset plot
-            self.sc.axes.draw_artist(self.sc.axes.patch)
+        if len(keypoints) > self.current_frame:
+            frame_keypoints = keypoints[self.current_frame]
+            if len(frame_keypoints) > self.selected_keypoint:
+                keypoint_position = frame_keypoints[self.selected_keypoint]
 
-            # Calculate new vector
-            new_vector_value = self.calculate_new_vector(
-                keypoint_position, prev_keypoint_position, fps)
+            if self.current_frame != 0:
+                prev_frame_keypoints = self._get_network_keypoints()[
+                    self.current_frame - 1]
+                if len(prev_frame_keypoints) > self.selected_keypoint:
+                    prev_keypoint_position = prev_frame_keypoints[self.selected_keypoint]
 
-            # Set new vector
-            self.set_vector(new_vector_value)
+        # Calculate new vector
+        new_vector_value = utils.calculate_new_vector(
+            keypoint_position, prev_keypoint_position, fps)
 
-            # Save current position as previous
-            self.pos_prev_value = keypoint_position
+        # Set new vector
+        self.vector = self.plt_canvas.update_velocity_plot(
+            new_vector_value)
 
-    # Function for configuring params of plt plot for vector display
-    def _set_vector_plot_params(self) -> None:
-        # Set axis limits
-        self.sc.axes.set_xlim(-1000, 1000)
-        self.sc.axes.set_ylim(-1000, 1000)
+        # Save current position as previous
+        self.pos_prev_value = keypoint_position
 
-        # Set axis labels
-        self.sc.axes.set_xlabel("px/s")
-        self.sc.axes.set_ylabel("px/s")
-
-        # Show visual components of x and y axis
-        self.sc.axes.set_axis_on()
-
-    # Process 2D skeleton display
-    def _process_2d(self, frame: np.ndarray, keypoints: torch.Tensor) -> None:
-        if self.sc.axes.name == "3d":
-            self.sc.axes = self.sc.fig.add_subplot(111)
-
-        self.plt_draw_2d(
-            keypoints, SKELTONS[self._get_network_name()], frame.shape)
-
-    # Set params for displaying 2D plot
-    def _set_2d_plot_params(self, frame_shape: tuple) -> None:
-        # Set X and Y axis limits
-        self.sc.axes.set_xlim(0, frame_shape[1])
-        self.sc.axes.set_ylim(0, frame_shape[0])
-
-    # Process 2D skeleton display
     def _process_3d(self, frame: np.ndarray, keypoints: torch.Tensor) -> None:
         if self.sc.axes.name != "3d":
             self.sc.axes = self.sc.fig.add_subplot(111, projection='3d')
@@ -666,27 +623,6 @@ class GUI(QtWidgets.QMainWindow):
             else:
                 model.setData(model.index(i, 0), QtGui.QColor(
                     '#08c71b'), QtCore.Qt.ItemDataRole.BackgroundRole)
-
-    def plt_draw_2d(self, landmarks: list, skeleton: list, frame_shape: tuple) -> None:
-        if len(landmarks) == 0:
-            return
-
-        self.sc.axes.cla()
-
-        # Extract every point
-        for i, (first_keypoint, second_keypoint) in enumerate(skeleton):
-            start_point = landmarks[first_keypoint]
-            end_point = landmarks[second_keypoint]
-            if utils.keypoints_eq_0(start_point, end_point):
-                continue
-
-            self.sc.axes.plot([start_point[0], end_point[0]], [
-                frame_shape[0] - start_point[1], frame_shape[0] - end_point[1]])
-            self.sc.axes.set_xlim(0, frame_shape[1])
-            self.sc.axes.set_ylim(0, frame_shape[0])
-
-        self.sc.fig.canvas.draw()
-        self.sc.fig.canvas.flush_events()
 
     def plt_draw_3d(self, landmarks: list, skeleton: list, frame_shape: tuple) -> None:
         if len(landmarks) == 0:
