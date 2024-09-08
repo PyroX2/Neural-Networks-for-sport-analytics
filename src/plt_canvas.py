@@ -14,7 +14,7 @@ import src.utils as utils
 
 
 class PltCanvas:
-    def __init__(self):
+    def __init__(self, max_skeleton_len):
         super().__init__()
         self._main = QtWidgets.QWidget()
 
@@ -31,33 +31,28 @@ class PltCanvas:
             self._dynamic_ax.set_xlabel("px/s")
             self._dynamic_ax.set_ylabel("px/s")
 
-            self.vector.set_UVC(vector[0], vector[1])
+            self.vector.set_UVC(vector[0], -vector[1])
             self._dynamic_ax.set_ylim(-1, 1)
+            self._dynamic_ax.set_xlim(-1, 1)
             self.vector.figure.canvas.draw()
 
     def update_2d_plot(self, keypoints: list, skeleton: list, frame_shape: tuple) -> None:
         self._dynamic_ax.set_xlim(0, frame_shape[1])
         self._dynamic_ax.set_ylim(0, frame_shape[0])
+        self._dynamic_ax.draw_artist(self._dynamic_ax.patch)
 
-        lines = []
-
-        print("KEYPOINTS", keypoints)
         if hasattr(self, '_line'):
             # Extract every point
             for i, (first_keypoint_index, second_keypoint_index) in enumerate(skeleton):
-                print("first_keypoint_index", first_keypoint_index)
-                start_point = keypoints[first_keypoint_index]
-                end_point = keypoints[second_keypoint_index]
-                if utils.keypoints_eq_to_zero(start_point, end_point):
+                if len(keypoints) > max(first_keypoint_index, second_keypoint_index):
+                    start_point = keypoints[first_keypoint_index]
+                    end_point = keypoints[second_keypoint_index]
+                else:
                     continue
-
-                line = self._dynamic_ax.plot([start_point[0], end_point[0]], [
+                if utils.keypoints_eq_0(start_point, end_point):
+                    continue
+                line,  = self._dynamic_ax.plot([start_point[0], end_point[0]], [
                     frame_shape[0] - start_point[1], frame_shape[0] - end_point[1]])
-                lines.append(line)
-
-            # t = np.linspace(0, 10, 101)
-            # self._line.set_data(t, np.sin(t + time.time()))
-            for line in lines:
                 line.figure.canvas.draw()
 
     def update_3d_plot(self):

@@ -180,8 +180,10 @@ class GUI(QtWidgets.QMainWindow):
         self.right_vbox.setAlignment(
             self.selected_keypoint_layout, QtCore.Qt.AlignmentFlag.AlignRight)
 
+        max_skeleton_len = max([len(skeleton) if skeleton is not None else 0
+                               for skeleton in list(SKELTONS.values())])
         # CREATE PLT PLOT
-        self.plt_canvas = PltCanvas()
+        self.plt_canvas = PltCanvas(max_skeleton_len)
         self.plt_canvas._add_to_layout(self.right_vbox, self)
 
         # PLT TIMER
@@ -431,6 +433,7 @@ class GUI(QtWidgets.QMainWindow):
             cv2.cvtColor(frame, cv2.COLOR_RGB2BGR))
 
     # Changes play button status and text displayed on it
+
     def change_play_button(self) -> None:
         if self.play_button_status:
             self.play_button_status = False
@@ -442,12 +445,12 @@ class GUI(QtWidgets.QMainWindow):
     def _update_canvas(self):
         if self.selected_plot == 0:
             self._process_vector()
-        # elif self.selected_plot == 1:
-        #     keypoints = self._get_network_keypoints()[self.current_frame]
-        #     data = self._get_network_data()
-        #     frame = data[self.current_frame]
-        #     self.plt_canvas.update_2d_plot(
-        #         keypoints, SKELTONS[self._get_network_name()], frame.shape)
+        elif self.selected_plot == 1:
+            keypoints = self._get_network_keypoints()[self.current_frame]
+            data = self._get_network_data()
+            frame = data[self.current_frame]
+            self.plt_canvas.update_2d_plot(
+                keypoints, SKELTONS[self._get_network_name()], frame.shape)
         else:
             pass
 
