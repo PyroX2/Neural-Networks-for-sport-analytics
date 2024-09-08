@@ -186,11 +186,6 @@ class GUI(QtWidgets.QMainWindow):
         self.plt_canvas = PltCanvas(max_skeleton_len)
         self.plt_canvas._add_to_layout(self.right_vbox, self)
 
-        # PLT TIMER
-        self._plt_timer = self.plt_canvas.dynamic_canvas.new_timer(50)
-        self._plt_timer.add_callback(self._update_canvas)
-        self._plt_timer.start()
-
         # MAIN PAGE LAYOUT
         self.central_widget.setLayout(self.main_page_layout)
 
@@ -406,6 +401,8 @@ class GUI(QtWidgets.QMainWindow):
 
         # Color green available keypoints
         self._color_combobox_items()
+
+        self._update_canvas()
 
         # Increment current frame value if possible
         if self.play_button_status and self.current_frame < len(self.networks[network]['Data'])-1:
