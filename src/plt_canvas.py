@@ -37,10 +37,15 @@ class PltCanvas:
             self.vector.figure.canvas.draw()
 
     def update_2d_plot(self, keypoints: list, skeleton: list, frame_shape: tuple) -> None:
+        self._dynamic_ax.cla()
+        self._dynamic_ax.draw_artist(self._dynamic_ax.patch)
         self._dynamic_ax.set_xlim(0, frame_shape[1])
         self._dynamic_ax.set_ylim(0, frame_shape[0])
-        self._dynamic_ax.draw_artist(self._dynamic_ax.patch)
 
+        x1_list = []
+        x2_list = []
+        y1_list = []
+        y2_list = []
         if hasattr(self, '_line'):
             # Extract every point
             for i, (first_keypoint_index, second_keypoint_index) in enumerate(skeleton):
@@ -51,9 +56,14 @@ class PltCanvas:
                     continue
                 if utils.keypoints_eq_0(start_point, end_point):
                     continue
-                line,  = self._dynamic_ax.plot([start_point[0], end_point[0]], [
-                    frame_shape[0] - start_point[1], frame_shape[0] - end_point[1]])
-                line.figure.canvas.draw()
+                x1_list.append(start_point[0])
+                x2_list.append(end_point[0])
+                y1_list.append(frame_shape[0] - start_point[1])
+                y2_list.append(frame_shape[0] - end_point[1])
+
+            self._dynamic_ax.plot(
+                [x1_list, x2_list], [y1_list, y2_list])
+            self._dynamic_ax.figure.canvas.draw()
 
     def update_3d_plot(self):
         if hasattr(self, '_3d_line'):
