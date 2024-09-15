@@ -18,7 +18,7 @@ import src.utils as utils
 from src.utils import SKELETON_COLORS
 from src.skeletons import SKELTONS
 import matplotlib.pyplot as plt
-import random
+from src.rep_count import RepCount
 
 
 matplotlib.use("Qt5Agg")
@@ -191,6 +191,9 @@ class GUI(QtWidgets.QMainWindow):
 
         # MULTITHREADING
         self.threadpool = QtCore.QThreadPool()
+
+        # REP COUNT
+        self.rep_count = RepCount()
 
         self.setCentralWidget(self.central_widget)
 
@@ -410,6 +413,9 @@ class GUI(QtWidgets.QMainWindow):
 
         if self.processing:
             return processed_frame, True
+
+        processed_frame = self.rep_count.process(
+            processed_frame, keypoints, 'left_arm')
 
         return processed_frame, False
 
