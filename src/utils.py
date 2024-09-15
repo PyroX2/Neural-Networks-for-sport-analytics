@@ -2,6 +2,7 @@ import cv2
 import numpy as np
 import torch
 from skimage.transform import resize
+from src.skeletons import SKELTONS
 
 
 # Define colors for each connection in skeleton
@@ -29,7 +30,7 @@ SKELETON_COLORS = (
 )
 
 
-def draw_keypoints(landmarks: torch.Tensor, image: np.ndarray, skeleton: tuple) -> np.ndarray:
+def draw_keypoints(landmarks: torch.Tensor, image: np.ndarray, skeleton: tuple, color: tuple = None) -> np.ndarray:
     # If landmarks list is empty return original image
     if len(landmarks) == 0:
         return image
@@ -41,12 +42,20 @@ def draw_keypoints(landmarks: torch.Tensor, image: np.ndarray, skeleton: tuple) 
             continue
 
         # If landmark exists draw it on image
-        image = cv2.line(
-            image, (int(landmarks[start_point][0].item()),
-                    int(landmarks[start_point][1].item())),
-            (int(landmarks[end_point][0].item()),
-             int(landmarks[end_point][1].item())),
-            SKELETON_COLORS[i], 4)
+        if color is None:
+            image = cv2.line(
+                image, (int(landmarks[start_point][0].item()),
+                        int(landmarks[start_point][1].item())),
+                (int(landmarks[end_point][0].item()),
+                 int(landmarks[end_point][1].item())),
+                SKELETON_COLORS[i], 4)
+        else:
+            image = cv2.line(
+                image, (int(landmarks[start_point][0].item()),
+                        int(landmarks[start_point][1].item())),
+                (int(landmarks[end_point][0].item()),
+                 int(landmarks[end_point][1].item())),
+                color, 4)
     return image
 
 
