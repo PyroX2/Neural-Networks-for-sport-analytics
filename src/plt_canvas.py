@@ -1,15 +1,11 @@
 import sys
 import time
-
 import numpy as np
-
 from matplotlib.backends.backend_qtagg import FigureCanvas
 from matplotlib.backends.backend_qtagg import \
     NavigationToolbar2QT as NavigationToolbar
 from matplotlib.backends.qt_compat import QtWidgets
 from matplotlib.figure import Figure
-import random
-import matplotlib.pyplot as plt
 import src.utils as utils
 
 
@@ -18,7 +14,8 @@ class PltCanvas:
         super().__init__()
         self._main = QtWidgets.QWidget()
 
-        self.dynamic_canvas = FigureCanvas(Figure(figsize=(5, 3)))
+        self.fig = Figure(figsize=(5, 3))
+        self.dynamic_canvas = FigureCanvas(self.fig)
 
         self._dynamic_ax = self.dynamic_canvas.figure.subplots()
 
@@ -84,19 +81,17 @@ class PltCanvas:
             self.update_3d_plot()
 
     def _change_plot(self, i: str) -> None:
+        self._clear_plot()
         if i == 0:
-            self._clear_plot()
             self._dynamic_ax = self.dynamic_canvas.figure.add_subplot(111)
             self._dynamic_ax.set_ylim(-1, 1)
             self.vector = self._dynamic_ax.quiver(
                 0, 0, 10, 0)
         elif i == 1:
-            self._clear_plot()
             self._dynamic_ax = self.dynamic_canvas.figure.add_subplot(111)
             self._dynamic_ax.set_ylim(-1, 1)
             self._line, = self._dynamic_ax.plot([0], [0])
         elif i == 2:
-            self._clear_plot()
             self._dynamic_ax = self.dynamic_canvas.figure.add_subplot(111,
                                                                       projection='3d')
             self._3d_line, = self._dynamic_ax.plot(
