@@ -49,6 +49,7 @@ class GUI(QtWidgets.QMainWindow):
         self.main_page_layout.addLayout(self.left_vbox, 0, 0)
         # Add right vbox to main layout
         self.main_page_layout.addLayout(self.right_vbox, 0, 1)
+        self.main_page_layout.setColumnStretch(0, 2)
 
         # NEURAL NETWORK CHECKBOX
         self.checkbox_layout = QtWidgets.QHBoxLayout()
@@ -71,26 +72,6 @@ class GUI(QtWidgets.QMainWindow):
 
         self.left_vbox.addLayout(
             self.checkbox_layout)
-
-        # CURRENTLY DISPLAYED NETWORK
-        self.currently_displayed = QtWidgets.QLabel("Currently displayed: ")
-        self.currently_displayed_combobox = QtWidgets.QComboBox()
-
-        self.currently_displayed_layout = QtWidgets.QHBoxLayout()
-        self.currently_displayed_layout.addWidget(
-            self.currently_displayed, alignment=QtCore.Qt.AlignmentFlag.AlignRight)
-        self.currently_displayed_layout.addWidget(
-            self.currently_displayed_combobox, alignment=QtCore.Qt.AlignmentFlag.AlignRight)
-
-        for key in self.networks.keys():
-            self.currently_displayed_combobox.addItem(key)
-        self.currently_displayed_combobox.currentIndexChanged.connect(
-            self.network_selection_change)
-
-        self.right_vbox.addLayout(
-            self.currently_displayed_layout)
-        self.right_vbox.setAlignment(
-            self.currently_displayed_layout, QtCore.Qt.AlignmentFlag.AlignRight)
 
         # IMAGE WINDOW
         self.image_window = ImageWindow()
@@ -144,6 +125,26 @@ class GUI(QtWidgets.QMainWindow):
         self.progress_bar = QtWidgets.QProgressBar(self.central_widget)
         self.progress_bar.setGeometry(30, 40, 200, 25)
         self.right_vbox.addWidget(self.progress_bar)
+
+        # CURRENTLY DISPLAYED NETWORK
+        self.currently_displayed = QtWidgets.QLabel("Currently displayed: ")
+        self.currently_displayed_combobox = QtWidgets.QComboBox()
+
+        self.currently_displayed_layout = QtWidgets.QHBoxLayout()
+        self.currently_displayed_layout.addWidget(
+            self.currently_displayed, alignment=QtCore.Qt.AlignmentFlag.AlignRight)
+        self.currently_displayed_layout.addWidget(
+            self.currently_displayed_combobox, alignment=QtCore.Qt.AlignmentFlag.AlignRight)
+
+        for key in self.networks.keys():
+            self.currently_displayed_combobox.addItem(key)
+        self.currently_displayed_combobox.currentIndexChanged.connect(
+            self.network_selection_change)
+
+        self.right_vbox.addLayout(
+            self.currently_displayed_layout)
+        self.right_vbox.setAlignment(
+            self.currently_displayed_layout, QtCore.Qt.AlignmentFlag.AlignRight)
 
         # KEYPOINT SELECTION
         self.selected_keypoint_label = QtWidgets.QLabel("Selected keypoints: ")
