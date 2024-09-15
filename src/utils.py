@@ -94,3 +94,15 @@ def calculate_new_vector(current_value: torch.Tensor, prev_keypoint_position: to
     new_vector_x = (current_value[0] - prev_keypoint_position[0]) * fps
     new_vector_y = (current_value[1] - prev_keypoint_position[1]) * fps
     return [new_vector_x, new_vector_y]
+
+
+def extract_given_keypoints(keypoints: torch.Tensor, skeleton: list, indicies: list) -> tuple:
+    selected_keypoints = keypoints[indicies]
+    selected_keypoints = selected_keypoints[:, :2]
+    selected_skeleton = []
+
+    for link in skeleton:
+        if link[0] in indicies and link[1] in indicies:
+            selected_skeleton.append(link)
+
+    return selected_keypoints, selected_skeleton
